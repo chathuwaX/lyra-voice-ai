@@ -122,23 +122,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Key className="w-3.5 h-3.5 text-sky-400" />
-                    Gemini API Key
+                    AI API Key (Gemini or Groq)
                   </span>
-                  <a
-                    href="https://aistudio.google.com/app/apikey"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11px] text-sky-400 hover:underline flex items-center gap-1 font-normal lowercase"
-                  >
-                    Get free API key <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
+                  <div className="flex items-center gap-3">
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] text-sky-400 hover:underline flex items-center gap-1 font-normal"
+                    >
+                      Free Gemini Key <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                    <span className="text-slate-600">|</span>
+                    <a
+                      href="https://console.groq.com/keys"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] text-amber-400 hover:underline flex items-center gap-1 font-normal"
+                    >
+                      Free Groq (Ultra-Fast) <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
                 </label>
                 <div className="relative">
                   <input
                     type={showKey ? 'text' : 'password'}
                     value={tempApiKey}
                     onChange={(e) => setTempApiKey(e.target.value)}
-                    placeholder="Enter your Gemini API Key..."
+                    placeholder="Paste Gemini (AIzaSy...) or Groq (gsk_...) key"
                     className="w-full px-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-sky-400 transition-colors pr-10"
                   />
                   <button
@@ -150,7 +161,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </button>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Stored securely in your local browser storage. You can also define it in <code className="text-sky-300">.env</code> as <code className="text-sky-300">VITE_GEMINI_API_KEY</code>.
+                  Both are 100% free with no credit card required. Groq keys (<code className="text-amber-300">gsk_...</code>) provide ultra-fast instant (~150ms) inference!
                 </p>
               </div>
 
@@ -164,10 +175,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onChange={(e) => setTempModel(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-sky-400 transition-colors"
                 >
-                  <option value="gemini-3.8-flash">Gemini 3.8 Flash (Recommended - Fastest real-time voice)</option>
-                  <option value="gemini-3.8-pro">Gemini 3.8 Pro (Advanced reasoning)</option>
-                  <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (Legacy)</option>
+                  <option value="gemini-3.8-flash">Gemini 3.8 Flash (Google - Fast real-time voice)</option>
+                  <option value="gemini-2.0-flash">Gemini 2.0 Flash (Google - Stable fast)</option>
+                  <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Groq - Ultra-Fast ~150ms)</option>
+                  <option value="gemini-3.8-pro">Gemini 3.8 Pro (Google - Advanced reasoning)</option>
                 </select>
               </div>
             </div>
