@@ -4,14 +4,14 @@ import { ThemeMode } from './types';
 import { ParticleBackground } from './components/ParticleBackground';
 import { AvatarStage } from './components/AvatarStage';
 import { VoiceControls } from './components/VoiceControls';
-import { ChatDrawer } from './components/ChatDrawer';
+import { ConversationPanel } from './components/ConversationPanel';
 import { SettingsModal } from './components/SettingsModal';
 import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { useGeminiChat } from './hooks/useGeminiChat';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from './hooks/useSpeechSynthesis';
-import { MessageSquare, Settings, Sparkles, AlertCircle } from 'lucide-react';
+import { MessageSquare, Settings, Sparkles, AlertCircle, PanelRightOpen } from 'lucide-react';
 
 export const App: React.FC = () => {
   // Theme management
@@ -26,8 +26,30 @@ export const App: React.FC = () => {
     localStorage.setItem('antigravity_theme', mode);
   };
 
-  // UI Modals / Drawers
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  // Screen width detection for responsive side panel
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 1024;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Conversation Side Panel: Open by default on desktop!
+  const [isSidePanelOpen, setIsSidePanelOpen] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024;
+    }
+    return true;
+  });
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -98,7 +120,7 @@ export const App: React.FC = () => {
     },
   });
 
-  // Speech Recognition (STT)
+  // Fast Speech Recognition (STT with real-time VAD)
   const handleUserFinalSpeech = useCallback(
     (transcript: string) => {
       if (!transcript.trim()) return;
@@ -128,6 +150,7 @@ export const App: React.FC = () => {
       addToast(err, 'error');
     },
     continuous: voiceSettings.handsFreeMode,
+    silenceTimeoutMs: 900, // 900ms fast VAD for real-time capture
   });
 
   // Set avatar state to 'listening' when mic is active and not thinking or speaking
@@ -139,13 +162,13 @@ export const App: React.FC = () => {
     }
   }, [isListening, avatarState, setAvatarState]);
 
-  // Hands-free continuous loop: when assistant finishes speaking, resume listening
+  // Hands-free continuous loop: when assistant finishes speaking, resume listening instantly
   useEffect(() => {
     speechCallbacksRef.current.onEnd = () => {
       if (voiceSettings.handsFreeMode && isSpeechSupported) {
         setTimeout(() => {
           startListening();
-        }, 350);
+        }, 300);
       }
     };
   }, [voiceSettings.handsFreeMode, isSpeechSupported, startListening]);
@@ -196,11 +219,11 @@ export const App: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       {/* Top Header Navbar */}
-      <header className="relative z-30 flex items-center justify-between px-4 sm:px-8 py-4 sm:py-5">
+      <header className="relative z-30 flex items-center justify-between px-4 sm:px-8 py-3.5 sm:py-4 shrink-0 border-b border-white/5 backdrop-blur-md">
         {/* Brand Logo & Name */}
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-cyan-300 flex items-center justify-center shadow-lg shadow-sky-500/20 border border-white/20">
-            <Sparkles className="w-5 h-5 text-slate-950" />
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-cyan-300 flex items-center justify-center shadow-lg shadow-sky-500/20 border border-white/20">
+            <Sparkles className="w-4 h-4 text-slate-950" />
           </div>
           <div>
             <h1 className="text-sm sm:text-base font-bold tracking-tight text-white flex items-center gap-2">
@@ -225,7 +248,7 @@ export const App: React.FC = () => {
         </div>
 
         {/* Right Action Icons: Transcript & Settings */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {/* Missing API Key Warning Pill */}
           {!apiKey && (
             <button
@@ -237,15 +260,20 @@ export const App: React.FC = () => {
             </button>
           )}
 
-          {/* Transcript Drawer Toggle */}
+          {/* Conversation Side Panel Toggle */}
           <button
-            onClick={() => setIsChatOpen(!isChatOpen)}
-            className="relative p-2.5 rounded-2xl backdrop-blur-xl border border-white/10 hover:border-white/25 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all shadow-md active:scale-95"
-            title="Open Conversation Transcript"
+            onClick={() => setIsSidePanelOpen(!isSidePanelOpen)}
+            className={`relative flex items-center gap-1.5 px-3 py-2 rounded-2xl backdrop-blur-xl border transition-all shadow-md active:scale-95 text-xs font-medium ${
+              isSidePanelOpen
+                ? 'bg-sky-500/20 text-sky-200 border-sky-400/40 shadow-[0_0_15px_rgba(56,189,248,0.2)]'
+                : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border-white/10 hover:border-white/25'
+            }`}
+            title={isSidePanelOpen ? 'Collapse Conversation Side Panel' : 'Open Conversation Side Panel'}
           >
-            <MessageSquare className="w-4 h-4" />
+            {isSidePanelOpen ? <MessageSquare className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+            <span className="hidden sm:inline">Conversation</span>
             {messages.length > 1 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-sky-500 text-white text-[10px] font-bold flex items-center justify-center shadow">
+              <span className="px-1.5 py-0.2 rounded-full bg-sky-500 text-white text-[10px] font-bold">
                 {messages.length}
               </span>
             )}
@@ -262,54 +290,65 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Center Area: Avatar Stage */}
-      <main className="relative flex-1 flex flex-col items-center justify-center px-4">
-        {/* Mobile Theme Switcher */}
-        <div className="sm:hidden mb-2">
-          <ThemeSwitcher
-            currentTheme={currentTheme}
-            onSelectTheme={handleSelectTheme}
-            activeConfig={activeThemeConfig}
-          />
+      {/* Main Workspace: Split View with Avatar Stage + Docked Conversation Side Panel */}
+      <div className="relative flex-1 flex overflow-hidden">
+        {/* Left/Center Area: Avatar Stage & Voice Controls */}
+        <div className="flex-1 flex flex-col justify-between items-center relative z-10 px-4 py-3 sm:py-4 overflow-y-auto custom-scrollbar">
+          {/* Mobile Theme Switcher */}
+          <div className="sm:hidden mb-1">
+            <ThemeSwitcher
+              currentTheme={currentTheme}
+              onSelectTheme={handleSelectTheme}
+              activeConfig={activeThemeConfig}
+            />
+          </div>
+
+          {/* Central Floating Avatar */}
+          <div className="flex-1 flex items-center justify-center w-full">
+            <AvatarStage
+              avatarState={avatarState}
+              theme={activeThemeConfig}
+              audioLevel={audioLevel}
+              customAvatarUrl={customAvatarUrl}
+              onUploadAvatar={saveCustomAvatar}
+              onStopSpeaking={handleInterruptSpeaking}
+              isHandsFree={voiceSettings.handsFreeMode}
+            />
+          </div>
+
+          {/* Bottom Voice Controls */}
+          <div className="w-full pb-2">
+            <VoiceControls
+              theme={activeThemeConfig}
+              isListening={isListening}
+              interimTranscript={interimTranscript}
+              isSpeaking={isSpeaking}
+              isMuted={voiceSettings.isMuted}
+              handsFreeMode={voiceSettings.handsFreeMode}
+              onToggleListening={toggleListening}
+              onToggleHandsFree={handleToggleHandsFree}
+              onToggleMute={handleToggleMute}
+              onSendMessage={handleManualSendMessage}
+              onStopSpeaking={handleInterruptSpeaking}
+              isSpeechSupported={isSpeechSupported}
+            />
+          </div>
         </div>
 
-        <AvatarStage
-          avatarState={avatarState}
-          theme={activeThemeConfig}
-          audioLevel={audioLevel}
-          customAvatarUrl={customAvatarUrl}
-          onUploadAvatar={saveCustomAvatar}
-          onStopSpeaking={handleInterruptSpeaking}
-          isHandsFree={voiceSettings.handsFreeMode}
-        />
-      </main>
-
-      {/* Bottom Voice & Text Action Controls */}
-      <footer className="relative pb-6 sm:pb-8">
-        <VoiceControls
-          theme={activeThemeConfig}
-          isListening={isListening}
+        {/* Right Side Panel: Live Real-Time Conversation Log */}
+        <ConversationPanel
+          isOpen={isSidePanelOpen}
+          onToggle={() => setIsSidePanelOpen(!isSidePanelOpen)}
+          messages={messages}
           interimTranscript={interimTranscript}
-          isSpeaking={isSpeaking}
-          isMuted={voiceSettings.isMuted}
-          handsFreeMode={voiceSettings.handsFreeMode}
-          onToggleListening={toggleListening}
-          onToggleHandsFree={handleToggleHandsFree}
-          onToggleMute={handleToggleMute}
+          avatarState={avatarState}
+          onClear={clearMessages}
+          theme={activeThemeConfig}
           onSendMessage={handleManualSendMessage}
-          onStopSpeaking={handleInterruptSpeaking}
-          isSpeechSupported={isSpeechSupported}
+          onSpeakMessage={(text) => speak(text)}
+          isMobile={isMobile}
         />
-      </footer>
-
-      {/* Collapsible Transcript Drawer */}
-      <ChatDrawer
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        messages={messages}
-        onClear={clearMessages}
-        theme={activeThemeConfig}
-      />
+      </div>
 
       {/* Settings Modal */}
       <SettingsModal

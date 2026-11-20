@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Message, AvatarState } from '../types';
 import { generateGeminiReply, DEFAULT_SYSTEM_INSTRUCTION } from '../services/gemini';
 
@@ -93,8 +93,17 @@ export function useGeminiChat({ onAssistantReply, onError }: UseGeminiChatOption
         timestamp: new Date(),
       };
 
+      const assistantMsgId = 'asst-' + Date.now();
+      const initialAssistantMessage: Message = {
+        id: assistantMsgId,
+        role: 'assistant',
+        content: '...', // Shows real-time thinking indicator in panel
+        timestamp: new Date(),
+      };
+
+      // Add user message and assistant placeholder immediately
       const updatedHistory = [...messages, userMessage];
-      setMessages(updatedHistory);
+      setMessages([...updatedHistory, initialAssistantMessage]);
       setAvatarState('thinking');
 
       try {
@@ -102,19 +111,25 @@ export function useGeminiChat({ onAssistantReply, onError }: UseGeminiChatOption
           apiKey,
           modelName,
           updatedHistory,
-          systemPrompt
+          systemPrompt,
+          (partialText) => {
+            // Live real-time stream into message bubble
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMsgId ? { ...msg, content: partialText } : msg
+              )
+            );
+          }
         );
 
-        const assistantMsg: Message = {
-          id: 'asst-' + Date.now(),
-          role: 'assistant',
-          content: reply,
-          timestamp: new Date(),
-        };
+        // Ensure final reply is recorded
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId ? { ...msg, content: reply } : msg
+          )
+        );
 
-        setMessages((prev) => [...prev, assistantMsg]);
         setAvatarState('speaking');
-
         onAssistantReply?.(reply);
       } catch (err: any) {
         console.error('Gemini error:', err);
@@ -122,13 +137,18 @@ export function useGeminiChat({ onAssistantReply, onError }: UseGeminiChatOption
         const errorMessage = err?.message || 'Failed to get a response from Gemini.';
         onError?.(errorMessage);
 
-        const errorMsg: Message = {
-          id: 'err-' + Date.now(),
-          role: 'system',
-          content: `⚠️ Error: ${errorMessage}`,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, errorMsg]);
+        // Replace pending assistant message with error
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId
+              ? {
+                  ...msg,
+                  role: 'system',
+                  content: `⚠️ Error: ${errorMessage}`,
+                }
+              : msg
+          )
+        );
       }
     },
     [apiKey, modelName, messages, systemPrompt, onAssistantReply, onError]

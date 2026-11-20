@@ -6,8 +6,8 @@ You are speaking directly in a real-time voice conversation with the user.
 
 Key conversational rules:
 1. Speak naturally, concisely, and warmly, just like an articulate, thoughtful human companion.
-2. Keep responses brief: exactly 2 to 4 sentences maximum unless the user specifically asks for deep technical explanations or a list.
-3. Actively drive natural two-way conversation by asking an insightful, relevant follow-up question or offering an engaging next step at the end of your response.
+2. Keep responses brief: exactly 2 to 3 sentences maximum for ultra-fast natural spoken exchange.
+3. Actively drive natural two-way conversation by asking an insightful, relevant follow-up question at the end.
 4. Do NOT use markdown symbols, bullet asterisks (*, -), hashes (#), code fences, or URLs, because your response will be read aloud by browser text-to-speech. Spell out abbreviations or acronyms if needed for clear pronunciation.
 5. Never be robotic or stiff. Be curious, helpful, and empathetic.`;
 
@@ -15,7 +15,8 @@ export async function generateGeminiReply(
   apiKey: string,
   modelName: string = 'gemini-3.8-flash',
   history: Message[],
-  systemInstruction: string = DEFAULT_SYSTEM_INSTRUCTION
+  systemInstruction: string = DEFAULT_SYSTEM_INSTRUCTION,
+  onChunk?: (partialText: string) => void
 ): Promise<string> {
   if (!apiKey || apiKey.trim() === '') {
     throw new Error('Please enter your Gemini API Key in Settings to start the conversation.');
@@ -24,25 +25,51 @@ export async function generateGeminiReply(
   // Automatically upgrade retired models if passed
   const effectiveModel = (!modelName || modelName === 'gemini-2.5-flash') ? 'gemini-3.8-flash' : modelName;
 
-  // Format messages for Gemini API
   // Filter out system or interim messages
   const validMessages = history.filter((m) => m.role === 'user' || m.role === 'assistant');
 
-  // Try using @google/genai SDK first
+  const contents = validMessages.map((msg) => ({
+    role: msg.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: msg.content }]
+  }));
+
+  if (contents.length === 0) {
+    throw new Error('No user prompt found in history');
+  }
+
+  // 1. Try streaming with GoogleGenAI SDK first for real-time low latency
   try {
     const ai = new GoogleGenAI({ apiKey });
-    
-    // Map conversation history
-    const contents = validMessages.map((msg) => ({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }]
-    }));
 
-    // If contents is empty, fail early
-    if (contents.length === 0) {
-      throw new Error('No user prompt found in history');
+    // Try generateContentStream if available
+    if (typeof (ai.models as any).generateContentStream === 'function') {
+      const responseStream = await (ai.models as any).generateContentStream({
+        model: effectiveModel,
+        contents,
+        config: {
+          systemInstruction: {
+            parts: [{ text: systemInstruction }]
+          },
+          temperature: 0.65,
+          maxOutputTokens: 160,
+        }
+      });
+
+      let accumulated = '';
+      for await (const chunk of responseStream) {
+        const text = chunk.text;
+        if (text) {
+          accumulated += text;
+          onChunk?.(accumulated);
+        }
+      }
+
+      if (accumulated.trim()) {
+        return accumulated.trim();
+      }
     }
 
+    // Direct generateContent call
     const response = await ai.models.generateContent({
       model: effectiveModel,
       contents,
@@ -50,25 +77,21 @@ export async function generateGeminiReply(
         systemInstruction: {
           parts: [{ text: systemInstruction }]
         },
-        temperature: 0.7,
-        maxOutputTokens: 250,
+        temperature: 0.65,
+        maxOutputTokens: 160,
       }
     });
 
     const text = response.text;
     if (text && text.trim()) {
+      onChunk?.(text.trim());
       return text.trim();
     }
   } catch (sdkError: any) {
-    console.warn('SDK call warning, attempting direct endpoint fallback:', sdkError);
+    console.warn('SDK call warning, falling back to REST endpoint:', sdkError);
 
-    // Fallback directly to REST endpoint in case of bundle/SDK differences
+    // 2. Direct REST fallback
     try {
-      const contents = validMessages.map((msg) => ({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }]
-      }));
-
       const model = effectiveModel;
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -83,8 +106,8 @@ export async function generateGeminiReply(
             parts: [{ text: systemInstruction }]
           },
           generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 250,
+            temperature: 0.65,
+            maxOutputTokens: 160,
           }
         })
       });
@@ -98,6 +121,7 @@ export async function generateGeminiReply(
       const data = await res.json();
       const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (candidateText) {
+        onChunk?.(candidateText.trim());
         return candidateText.trim();
       }
       throw new Error('No response content returned by Gemini.');
