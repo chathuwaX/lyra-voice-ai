@@ -69,6 +69,10 @@ export const App: React.FC = () => {
   const startListeningRef = useRef<() => void>(() => {});
   const stopListeningRef = useRef<() => void>(() => {});
 
+  // Anti-echo filters to prevent Mira from hearing herself through speakers
+  const lastAssistantSpokenRef = useRef<string>('');
+  const lastAssistantFinishedTimeRef = useRef<number>(0);
+
   // Speech Synthesis (TTS)
   const speechCallbacksRef = useRef<{ onEnd?: () => void }>({});
 
@@ -84,19 +88,21 @@ export const App: React.FC = () => {
     {
       onStart: () => {
         setAvatarState('speaking');
-        stopListeningRef.current(); // Ensure microphone is off while Mira is speaking
+        stopListeningRef.current(); // Hard abort microphone while Mira speaks
       },
       onEnd: () => {
         setAvatarState('idle');
+        lastAssistantFinishedTimeRef.current = Date.now();
         speechCallbacksRef.current.onEnd?.();
       },
       onError: (err) => {
         addToast(err, 'error');
         setAvatarState('idle');
+        lastAssistantFinishedTimeRef.current = Date.now();
         if (voiceSettings.handsFreeMode && isSpeechSupported) {
           setTimeout(() => {
             startListeningRef.current();
-          }, 350);
+          }, 750);
         }
       },
     }
@@ -119,14 +125,16 @@ export const App: React.FC = () => {
     clearMessages,
   } = useGeminiChat({
     onAssistantReply: (reply) => {
+      lastAssistantSpokenRef.current = reply.toLowerCase().trim();
       if (voiceSettings.autoSpeak && !voiceSettings.isMuted) {
         speak(reply);
       } else {
         setAvatarState('idle');
+        lastAssistantFinishedTimeRef.current = Date.now();
         if (voiceSettings.handsFreeMode && isSpeechSupported) {
           setTimeout(() => {
             startListeningRef.current();
-          }, 350);
+          }, 750);
         }
       }
     },
@@ -138,9 +146,26 @@ export const App: React.FC = () => {
   // Fast Speech Recognition (STT with real-time VAD)
   const handleUserFinalSpeech = useCallback(
     (transcript: string) => {
-      if (!transcript.trim()) return;
+      const cleanUserText = transcript.trim();
+      if (!cleanUserText) return;
 
-      // 1. Immediately turn OFF microphone
+      // Anti-Echo Filter: Check if the mic heard Mira's own speaker output
+      const normalizedUser = cleanUserText.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+      const normalizedAssistant = lastAssistantSpokenRef.current.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+      const timeSinceSpeech = Date.now() - lastAssistantFinishedTimeRef.current;
+
+      // If user text matches what Mira just said or echo within 3.5s, drop it
+      if (
+        timeSinceSpeech < 3500 &&
+        normalizedAssistant &&
+        normalizedUser.length > 2 &&
+        (normalizedAssistant.includes(normalizedUser) || normalizedUser.includes(normalizedAssistant))
+      ) {
+        console.warn('Ignored acoustic echo from Mira speaker:', cleanUserText);
+        return;
+      }
+
+      // Immediately shut off microphone
       stopListeningRef.current();
 
       if (!apiKey) {
@@ -149,7 +174,7 @@ export const App: React.FC = () => {
         return;
       }
 
-      sendMessage(transcript);
+      sendMessage(cleanUserText);
     },
     [apiKey, sendMessage, addToast]
   );
@@ -186,16 +211,16 @@ export const App: React.FC = () => {
     }
   }, [isListening, avatarState, setAvatarState]);
 
-  // Hands-free continuous loop: when assistant finishes speaking, resume listening instantly
+  // Hands-free continuous loop: when assistant finishes speaking, resume listening cleanly after echo settles
   useEffect(() => {
     speechCallbacksRef.current.onEnd = () => {
       if (voiceSettings.handsFreeMode && isSpeechSupported) {
         setTimeout(() => {
-          startListening();
-        }, 300);
+          startListeningRef.current();
+        }, 750);
       }
     };
-  }, [voiceSettings.handsFreeMode, isSpeechSupported, startListening]);
+  }, [voiceSettings.handsFreeMode, isSpeechSupported]);
 
   const handleToggleHandsFree = () => {
     const nextState = !voiceSettings.handsFreeMode;

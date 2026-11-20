@@ -11,7 +11,7 @@ export interface UseSpeechRecognitionOptions {
   onInterimResult?: (transcript: string) => void;
   onError?: (error: string) => void;
   continuous?: boolean;
-  silenceTimeoutMs?: number; // VAD silence timeout to finalize fast
+  silenceTimeoutMs?: number;
 }
 
 export function useSpeechRecognition({
@@ -19,11 +19,11 @@ export function useSpeechRecognition({
   onInterimResult,
   onError,
   continuous = false,
-  silenceTimeoutMs = 950, // Fast 950ms silence detection instead of browser 3-5s delay
+  silenceTimeoutMs = 1000,
 }: UseSpeechRecognitionOptions = {}) {
   const [isListening, setIsListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
-  const [audioLevel, setAudioLevel] = useState(0); // 0 to 1 for visualizer
+  const [audioLevel, setAudioLevel] = useState(0);
   const [isSupported, setIsSupported] = useState(true);
 
   const recognitionRef = useRef<any>(null);
@@ -31,18 +31,20 @@ export function useSpeechRecognition({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
   const animFrameRef = useRef<number | null>(null);
-  const isManuallyStoppedRef = useRef(false);
 
-  // VAD silence detection refs
+  // Critical state flags to prevent echo and loop re-triggering
+  const isActiveRef = useRef(false);
   const silenceTimerRef = useRef<any>(null);
   const accumulatedSpeechRef = useRef<string>('');
+  const lastCommittedTextRef = useRef<string>('');
+  const lastCommittedTimeRef = useRef<number>(0);
+
   const onFinalResultRef = useRef(onFinalResult);
   onFinalResultRef.current = onFinalResult;
 
   const onInterimResultRef = useRef(onInterimResult);
   onInterimResultRef.current = onInterimResult;
 
-  // Clear silence timer helper
   const clearSilenceTimer = () => {
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
@@ -50,27 +52,47 @@ export function useSpeechRecognition({
     }
   };
 
-  // Commit accumulated speech immediately & auto turn off mic
+  // Hard stop & abort helper to prevent any pending audio from leaking
+  const hardAbortRecognition = useCallback(() => {
+    clearSilenceTimer();
+    isActiveRef.current = false;
+    accumulatedSpeechRef.current = '';
+    setInterimTranscript('');
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort(); // abort clears buffers immediately
+      } catch (e) {}
+    }
+    setIsListening(false);
+    stopAudioAnalysis();
+  }, []);
+
+  // Commit accumulated speech once, then immediately shut off mic
   const commitSpeech = useCallback(() => {
     clearSilenceTimer();
     const text = accumulatedSpeechRef.current.trim();
-    if (text) {
-      accumulatedSpeechRef.current = '';
-      setInterimTranscript('');
 
-      // Auto turn OFF mic immediately when question is asked
-      isManuallyStoppedRef.current = true;
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {}
-      }
-      setIsListening(false);
-      stopAudioAnalysis();
-
-      onFinalResultRef.current?.(text);
+    if (!text || !isActiveRef.current) {
+      return;
     }
-  }, []);
+
+    const now = Date.now();
+    // Prevent duplicate commits of the same text within 2.5 seconds
+    if (text === lastCommittedTextRef.current && now - lastCommittedTimeRef.current < 2500) {
+      hardAbortRecognition();
+      return;
+    }
+
+    lastCommittedTextRef.current = text;
+    lastCommittedTimeRef.current = now;
+
+    // Immediately shut down mic so it cannot hear anything else
+    hardAbortRecognition();
+
+    // Deliver user's question to the app
+    onFinalResultRef.current?.(text);
+  }, [hardAbortRecognition]);
 
   useEffect(() => {
     const win = window as unknown as IWindow;
@@ -87,6 +109,11 @@ export function useSpeechRecognition({
     recognition.lang = 'en-US';
 
     recognition.onresult = (event: any) => {
+      // If mic was turned off or aborted, strictly ignore any trailing results
+      if (!isActiveRef.current) {
+        return;
+      }
+
       let currentInterim = '';
       let finalBatch = '';
 
@@ -101,55 +128,52 @@ export function useSpeechRecognition({
 
       const activeText = (finalBatch || currentInterim).trim();
 
-      if (activeText) {
+      if (activeText && isActiveRef.current) {
         accumulatedSpeechRef.current = activeText;
         setInterimTranscript(activeText);
         onInterimResultRef.current?.(activeText);
 
-        // Reset silence timer on every new word
         clearSilenceTimer();
 
-        // If browser provided final, or start fast VAD timer for silence
         if (finalBatch) {
           commitSpeech();
         } else {
-          // Fast Silence Detection: If user stops speaking for silenceTimeoutMs, trigger immediately
+          // Silence timeout: when user pauses for silenceTimeoutMs, finalize
           silenceTimerRef.current = setTimeout(() => {
-            commitSpeech();
+            if (isActiveRef.current) {
+              commitSpeech();
+            }
           }, silenceTimeoutMs);
         }
       }
     };
 
     recognition.onerror = (event: any) => {
+      if (!isActiveRef.current) return;
       console.warn('SpeechRecognition error:', event.error);
       clearSilenceTimer();
+
       if (event.error === 'not-allowed') {
-        onError?.('Microphone permission denied. Please allow microphone access in your browser.');
-        stopListening();
-      } else if (event.error === 'network') {
-        onError?.('Speech recognition network error. Please check your connection or use text input.');
-      } else if (event.error !== 'no-speech') {
-        onError?.(`Speech recognition error: ${event.error}`);
+        onError?.('Microphone permission denied. Please allow microphone access.');
+        hardAbortRecognition();
+      } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        onError?.(`Speech error: ${event.error}`);
       }
     };
 
     recognition.onend = () => {
       clearSilenceTimer();
-      // If we had pending speech that wasn't committed, commit now
-      if (accumulatedSpeechRef.current.trim()) {
-        commitSpeech();
-      }
-
-      // If still continuous and not manually stopped, restart recognition
-      if (!isManuallyStoppedRef.current && continuous) {
+      // If still supposed to be active (e.g. browser timed out while listening), restart
+      if (isActiveRef.current && continuous) {
         try {
           recognition.start();
         } catch (e) {
           setIsListening(false);
+          isActiveRef.current = false;
         }
       } else {
         setIsListening(false);
+        isActiveRef.current = false;
         stopAudioAnalysis();
       }
     };
@@ -159,16 +183,22 @@ export function useSpeechRecognition({
     return () => {
       clearSilenceTimer();
       try {
-        recognition.stop();
+        recognition.abort();
       } catch (e) {}
       stopAudioAnalysis();
     };
-  }, [continuous, silenceTimeoutMs, commitSpeech, onError]);
+  }, [continuous, silenceTimeoutMs, commitSpeech, hardAbortRecognition, onError]);
 
-  // Audio level visualizer for microphone wave animation
+  // Audio level visualizer with echo cancellation enabled
   const startAudioAnalysis = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
       micStreamRef.current = stream;
 
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -184,7 +214,7 @@ export function useSpeechRecognition({
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
       const updateVolume = () => {
-        if (!analyserRef.current) return;
+        if (!analyserRef.current || !isActiveRef.current) return;
         analyserRef.current.getByteFrequencyData(dataArray);
 
         let sum = 0;
@@ -192,7 +222,6 @@ export function useSpeechRecognition({
           sum += dataArray[i];
         }
         const avg = sum / dataArray.length;
-        // Normalize 0 to 1
         const normalized = Math.min(1, Math.max(0, avg / 128));
         setAudioLevel(normalized);
 
@@ -226,50 +255,44 @@ export function useSpeechRecognition({
       onError?.('Speech recognition is not supported in this browser.');
       return;
     }
-    isManuallyStoppedRef.current = false;
+
+    // Reset all buffers and mark active
+    clearSilenceTimer();
     accumulatedSpeechRef.current = '';
     setInterimTranscript('');
+    isActiveRef.current = true;
+
     try {
       recognitionRef.current.start();
       setIsListening(true);
       startAudioAnalysis();
     } catch (err: any) {
       if (err.name === 'InvalidStateError') {
-        // Recognition might be in stopping transition, retry after 200ms
+        // Recognition was still closing, retry after clean 200ms pause
         setTimeout(() => {
-          try {
-            recognitionRef.current?.start();
-            setIsListening(true);
-            startAudioAnalysis();
-          } catch (e) {
-            setIsListening(true);
+          if (isActiveRef.current && recognitionRef.current) {
+            try {
+              recognitionRef.current.start();
+              setIsListening(true);
+              startAudioAnalysis();
+            } catch (e) {
+              setIsListening(true);
+            }
           }
         }, 200);
       } else {
         console.error('Error starting recognition:', err);
-        onError?.('Could not activate microphone recognition.');
+        onError?.('Could not activate microphone.');
       }
     }
   }, [onError]);
 
   const stopListening = useCallback(() => {
-    isManuallyStoppedRef.current = true;
-    // Commit any spoken words immediately before stopping
-    if (accumulatedSpeechRef.current.trim()) {
-      commitSpeech();
-    }
-    clearSilenceTimer();
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {}
-    }
-    setIsListening(false);
-    stopAudioAnalysis();
-  }, [commitSpeech]);
+    hardAbortRecognition();
+  }, [hardAbortRecognition]);
 
   const toggleListening = useCallback(() => {
-    if (isListening) {
+    if (isListening || isActiveRef.current) {
       stopListening();
     } else {
       startListening();
@@ -284,6 +307,5 @@ export function useSpeechRecognition({
     startListening,
     stopListening,
     toggleListening,
-    commitSpeech,
   };
 }
