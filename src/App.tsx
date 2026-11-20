@@ -367,6 +367,7 @@ export const App: React.FC = () => {
               onUploadAvatar={saveCustomAvatar}
               onStopSpeaking={handleInterruptSpeaking}
               isHandsFree={voiceSettings.handsFreeMode}
+              lastAssistantText={lastAssistantSpokenRef.current}
             />
           </div>
 
