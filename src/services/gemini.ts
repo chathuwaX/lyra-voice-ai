@@ -32,7 +32,10 @@ export async function generateGeminiReply(
   // 1. Check if user provided an ultra-fast Groq API key (starts with "gsk_")
   if (cleanKey.startsWith('gsk_')) {
     try {
-      const groqModel = modelName.includes('llama') ? modelName : 'llama-3.1-8b-instant';
+      // Active Groq models
+      const validGroqModels = ['openai/gpt-oss-20b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-120b'];
+      const groqModel = validGroqModels.includes(modelName) ? modelName : 'openai/gpt-oss-20b';
+
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {

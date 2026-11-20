@@ -29,10 +29,14 @@ export function useGeminiChat({ onAssistantReply, onError }: UseGeminiChatOption
 
   const [modelName, setModelName] = useState<string>(() => {
     const saved = localStorage.getItem('antigravity_gemini_model');
-    // Auto-migrate retired gemini-2.5-flash to gemini-3.8-flash
+    // Auto-migrate retired models
     if (!saved || saved === 'gemini-2.5-flash') {
       localStorage.setItem('antigravity_gemini_model', 'gemini-3.8-flash');
       return 'gemini-3.8-flash';
+    }
+    if (saved === 'llama-3.1-8b-instant') {
+      localStorage.setItem('antigravity_gemini_model', 'openai/gpt-oss-20b');
+      return 'openai/gpt-oss-20b';
     }
     return saved;
   });

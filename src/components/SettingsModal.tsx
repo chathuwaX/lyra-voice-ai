@@ -175,9 +175,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onChange={(e) => setTempModel(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-sky-400 transition-colors"
                 >
+                  <option value="openai/gpt-oss-20b">GPT-OSS 20B (Groq - Ultra-Fast ~20ms Real-Time)</option>
+                  <option value="qwen/qwen3.8-27b">Qwen 3.8 27B (Groq - High Quality ~25ms)</option>
                   <option value="gemini-3.8-flash">Gemini 3.8 Flash (Google - Fast real-time voice)</option>
-                  <option value="gemini-2.0-flash">Gemini 2.0 Flash (Google - Stable fast)</option>
-                  <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Groq - Ultra-Fast ~150ms)</option>
+                  <option value="gemini-2.0-flash">Gemini 2.0 Flash (Google - Stable)</option>
                   <option value="gemini-3.8-pro">Gemini 3.8 Pro (Google - Advanced reasoning)</option>
                 </select>
               </div>
