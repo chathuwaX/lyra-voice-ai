@@ -28,7 +28,13 @@ export function useGeminiChat({ onAssistantReply, onError }: UseGeminiChatOption
   });
 
   const [modelName, setModelName] = useState<string>(() => {
-    return localStorage.getItem('antigravity_gemini_model') || 'gemini-2.5-flash';
+    const saved = localStorage.getItem('antigravity_gemini_model');
+    // Auto-migrate retired gemini-2.5-flash to gemini-3.8-flash
+    if (!saved || saved === 'gemini-2.5-flash') {
+      localStorage.setItem('antigravity_gemini_model', 'gemini-3.8-flash');
+      return 'gemini-3.8-flash';
+    }
+    return saved;
   });
 
   const [systemPrompt, setSystemPrompt] = useState<string>(() => {

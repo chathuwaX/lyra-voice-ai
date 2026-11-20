@@ -13,13 +13,16 @@ Key conversational rules:
 
 export async function generateGeminiReply(
   apiKey: string,
-  modelName: string = 'gemini-2.5-flash',
+  modelName: string = 'gemini-3.8-flash',
   history: Message[],
   systemInstruction: string = DEFAULT_SYSTEM_INSTRUCTION
 ): Promise<string> {
   if (!apiKey || apiKey.trim() === '') {
     throw new Error('Please enter your Gemini API Key in Settings to start the conversation.');
   }
+
+  // Automatically upgrade retired models if passed
+  const effectiveModel = (!modelName || modelName === 'gemini-2.5-flash') ? 'gemini-3.8-flash' : modelName;
 
   // Format messages for Gemini API
   // Filter out system or interim messages
@@ -41,7 +44,7 @@ export async function generateGeminiReply(
     }
 
     const response = await ai.models.generateContent({
-      model: modelName || 'gemini-2.5-flash',
+      model: effectiveModel,
       contents,
       config: {
         systemInstruction: {
@@ -66,7 +69,7 @@ export async function generateGeminiReply(
         parts: [{ text: msg.content }]
       }));
 
-      const model = modelName || 'gemini-2.5-flash';
+      const model = effectiveModel;
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
       const res = await fetch(endpoint, {

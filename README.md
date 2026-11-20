@@ -30,7 +30,7 @@ A complete, production-ready talking AI Assistant web application with an ethere
   - **"Interrupt / Stop Speaking"** button to cut in at any time.
 
 ### 3. Gemini AI Engine
-- Powered by `@google/genai` (with direct REST fallback) using `gemini-2.5-flash`, `gemini-2.5-pro`, or `gemini-2.0-flash`.
+- Powered by `@google/genai` (with direct REST fallback) using `gemini-3.8-flash`, `gemini-3.8-pro`, or `gemini-2.0-flash`.
 - Custom conversational system prompt designed for natural spoken dialogue (concise 2–4 sentences, actively driving follow-up questions).
 - In-app **API Key Settings Modal** (stored in `localStorage`) plus optional `.env` configuration.
 
