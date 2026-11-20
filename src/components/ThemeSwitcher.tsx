@@ -15,7 +15,7 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({
   activeConfig,
 }) => {
   const options: { id: ThemeMode; icon: React.ReactNode; label: string }[] = [
-    { id: 'antigravity', icon: <Sparkles className="w-3.5 h-3.5" />, label: 'Antigravity' },
+    { id: 'antigravity', icon: <Sparkles className="w-3.5 h-3.5" />, label: 'Normal' },
     { id: 'professional', icon: <Briefcase className="w-3.5 h-3.5" />, label: 'Professional' },
     { id: 'friendly', icon: <Sun className="w-3.5 h-3.5" />, label: 'Warm' },
     { id: 'futuristic', icon: <Orbit className="w-3.5 h-3.5" />, label: 'Futuristic' },

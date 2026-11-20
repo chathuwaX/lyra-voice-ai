@@ -3,7 +3,7 @@ import { ThemeConfig, ThemeMode } from '../types';
 export const THEMES: Record<ThemeMode, ThemeConfig> = {
   antigravity: {
     id: 'antigravity',
-    name: 'Antigravity Focus',
+    name: 'Normal (Default)',
     tagline: 'Zero-gravity ethereal drift & soft ice-blue glow',
     bgColor: '#030712',
     gradientBg: 'radial-gradient(ellipse at 50% 40%, rgba(14, 165, 233, 0.15) 0%, rgba(2, 6, 23, 0.8) 60%, #020617 100%)',
