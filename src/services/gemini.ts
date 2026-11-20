@@ -11,6 +11,28 @@ Key conversational rules:
 4. Do NOT use markdown symbols, bullet asterisks (*, -), hashes (#), code fences, or URLs, because your response will be read aloud by browser text-to-speech. Spell out abbreviations or acronyms if needed for clear pronunciation.
 5. Never be robotic or stiff. Be curious, helpful, and empathetic.`;
 
+/**
+ * Strips and redacts any sensitive API key strings or query parameters from error messages
+ * so secrets are never leaked into the UI, toasts, or console logs.
+ */
+export function sanitizeErrorMessage(rawMessage?: string, userKey?: string): string {
+  if (!rawMessage) return 'An error occurred during communication.';
+  let sanitized = String(rawMessage);
+
+  if (userKey && userKey.trim().length > 6) {
+    sanitized = sanitized.split(userKey.trim()).join('[REDACTED_API_KEY]');
+  }
+
+  // Redact any string resembling Google or Groq API keys
+  sanitized = sanitized
+    .replace(/AIza[0-9A-Za-z_-]{20,}/g, '[REDACTED_API_KEY]')
+    .replace(/gsk_[0-9A-Za-z_-]{20,}/g, '[REDACTED_API_KEY]')
+    .replace(/Bearer\s+[^\s]+/gi, 'Bearer [REDACTED]')
+    .replace(/[?&]key=[^&\s]+/gi, '?key=[REDACTED]');
+
+  return sanitized;
+}
+
 export async function generateGeminiReply(
   apiKey: string,
   modelName: string = 'gemini-3.8-flash',
@@ -55,7 +77,8 @@ export async function generateGeminiReply(
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson?.error?.message || `Groq error: ${res.statusText}`);
+        const rawErr = errJson?.error?.message || `Groq error: ${res.statusText}`;
+        throw new Error(sanitizeErrorMessage(rawErr, cleanKey));
       }
 
       const groqData = await res.json();
@@ -65,12 +88,11 @@ export async function generateGeminiReply(
         return content;
       }
     } catch (groqErr: any) {
-      console.warn('Groq error:', groqErr);
-      throw groqErr;
+      throw new Error(sanitizeErrorMessage(groqErr?.message || 'Groq connection error', cleanKey));
     }
   }
 
-  // 2. Google Gemini Engine (with SDK + fast REST fallback)
+  // 2. Google Gemini Engine (with SDK + fast secure REST fallback)
   const effectiveModel =
     !modelName || modelName === 'gemini-2.5-flash'
       ? 'gemini-3.8-flash'
@@ -133,16 +155,15 @@ export async function generateGeminiReply(
       return text.trim();
     }
   } catch (sdkError: any) {
-    console.warn('SDK call warning, using direct REST endpoint:', sdkError);
-
-    // Direct REST fallback
+    // Direct REST fallback - uses secure x-goog-api-key header instead of URL query parameter
     try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${effectiveModel}:generateContent?key=${cleanKey}`;
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${effectiveModel}:generateContent`;
 
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-goog-api-key': cleanKey,
         },
         body: JSON.stringify({
           contents,
@@ -159,7 +180,7 @@ export async function generateGeminiReply(
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         const message = errorData?.error?.message || `API error ${res.status}: ${res.statusText}`;
-        throw new Error(message);
+        throw new Error(sanitizeErrorMessage(message, cleanKey));
       }
 
       const data = await res.json();
@@ -172,7 +193,7 @@ export async function generateGeminiReply(
     } catch (fallbackError: any) {
       const originalMessage =
         sdkError?.message || fallbackError?.message || 'Failed to connect to API';
-      throw new Error(originalMessage);
+      throw new Error(sanitizeErrorMessage(originalMessage, cleanKey));
     }
   }
 

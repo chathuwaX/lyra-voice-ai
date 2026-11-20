@@ -1,6 +1,10 @@
 import { useState, useCallback } from 'react';
 import { Message, AvatarState } from '../types';
-import { generateGeminiReply, DEFAULT_SYSTEM_INSTRUCTION } from '../services/gemini';
+import {
+  generateGeminiReply,
+  DEFAULT_SYSTEM_INSTRUCTION,
+  sanitizeErrorMessage,
+} from '../services/gemini';
 
 export interface UseGeminiChatOptions {
   onAssistantReply?: (reply: string) => void;
@@ -49,10 +53,15 @@ export function useGeminiChat({ onAssistantReply, onError }: UseGeminiChatOption
     return localStorage.getItem('antigravity_custom_avatar') || null;
   });
 
-  // Save config changes to localStorage
+  // Save config changes to localStorage securely
   const saveApiKey = useCallback((newKey: string) => {
-    setApiKey(newKey.trim());
-    localStorage.setItem('antigravity_gemini_api_key', newKey.trim());
+    const trimmed = newKey.trim();
+    setApiKey(trimmed);
+    if (trimmed) {
+      localStorage.setItem('antigravity_gemini_api_key', trimmed);
+    } else {
+      localStorage.removeItem('antigravity_gemini_api_key');
+    }
   }, []);
 
   const saveModel = useCallback((newModel: string) => {
@@ -136,12 +145,12 @@ export function useGeminiChat({ onAssistantReply, onError }: UseGeminiChatOption
         setAvatarState('speaking');
         onAssistantReply?.(reply);
       } catch (err: any) {
-        console.error('Gemini error:', err);
         setAvatarState('idle');
-        const errorMessage = err?.message || 'Failed to get a response from Gemini.';
+        const rawMessage = err?.message || 'Failed to get a response from AI engine.';
+        const errorMessage = sanitizeErrorMessage(rawMessage, apiKey);
         onError?.(errorMessage);
 
-        // Replace pending assistant message with error
+        // Replace pending assistant message with sanitized error
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMsgId

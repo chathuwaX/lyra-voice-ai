@@ -52,6 +52,31 @@ export const App: React.FC = () => {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  const handleToggleFullscreen = useCallback(() => {
+    setIsFullscreen((prev) => {
+      const next = !prev;
+      if (next) {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
+      } else {
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const addToast = useCallback((text: string, type: 'error' | 'success' | 'info' = 'info') => {
     const id = 'toast-' + Date.now() + Math.random().toString(36).substring(2, 6);
@@ -272,90 +297,98 @@ export const App: React.FC = () => {
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      {/* Top Header Navbar */}
-      <header className="relative z-30 flex items-center justify-between px-4 sm:px-8 py-3.5 sm:py-4 shrink-0 border-b border-white/5 backdrop-blur-md">
-        {/* Brand Logo & Name */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-cyan-300 flex items-center justify-center shadow-lg shadow-sky-500/20 border border-white/20">
-            <Sparkles className="w-4 h-4 text-slate-950" />
+      {/* Top Header Navbar (Hidden in Fullscreen Immersive Mode) */}
+      {!isFullscreen && (
+        <header className="relative z-30 flex items-center justify-between px-4 sm:px-8 py-3.5 sm:py-4 shrink-0 border-b border-white/5 backdrop-blur-md">
+          {/* Brand Logo & Name */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-cyan-300 flex items-center justify-center shadow-lg shadow-sky-500/20 border border-white/20">
+              <Sparkles className="w-4 h-4 text-slate-950" />
+            </div>
+            <div>
+              <h1 className="text-sm sm:base font-bold tracking-tight text-white flex items-center gap-2">
+                <span>MIRA</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                  Voice AI
+                </span>
+              </h1>
+              <p className="text-[11px] text-slate-400 hidden sm:block">
+                {activeThemeConfig.tagline}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-sm sm:text-base font-bold tracking-tight text-white flex items-center gap-2">
-              <span>MIRA</span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/30">
-                Voice AI
-              </span>
-            </h1>
-            <p className="text-[11px] text-slate-400 hidden sm:block">
-              {activeThemeConfig.tagline}
-            </p>
-          </div>
-        </div>
 
-        {/* Center: Theme Selector */}
-        <div className="hidden sm:block">
-          <ThemeSwitcher
-            currentTheme={currentTheme}
-            onSelectTheme={handleSelectTheme}
-            activeConfig={activeThemeConfig}
-          />
-        </div>
-
-        {/* Right Action Icons: Transcript & Settings */}
-        <div className="flex items-center gap-2">
-          {/* Missing API Key Warning Pill */}
-          {!apiKey && (
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-xs font-medium animate-pulse hover:bg-amber-500/30 transition-colors"
-            >
-              <AlertCircle className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">API Key Needed</span>
-            </button>
-          )}
-
-          {/* Conversation Side Panel Toggle */}
-          <button
-            onClick={() => setIsSidePanelOpen(!isSidePanelOpen)}
-            className={`relative flex items-center gap-1.5 px-3 py-2 rounded-2xl backdrop-blur-xl border transition-all shadow-md active:scale-95 text-xs font-medium ${
-              isSidePanelOpen
-                ? 'bg-sky-500/20 text-sky-200 border-sky-400/40 shadow-[0_0_15px_rgba(56,189,248,0.2)]'
-                : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border-white/10 hover:border-white/25'
-            }`}
-            title={isSidePanelOpen ? 'Collapse Conversation Side Panel' : 'Open Conversation Side Panel'}
-          >
-            {isSidePanelOpen ? <MessageSquare className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
-            <span className="hidden sm:inline">Conversation</span>
-            {messages.length > 1 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-sky-500 text-white text-[10px] font-bold">
-                {messages.length}
-              </span>
-            )}
-          </button>
-
-          {/* Settings Modal Toggle */}
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="p-2.5 rounded-2xl backdrop-blur-xl border border-white/10 hover:border-white/25 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all shadow-md active:scale-95"
-            title="Settings"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
-        </div>
-      </header>
-
-      {/* Main Workspace: Split View with Avatar Stage + Docked Conversation Side Panel */}
-      <div className="relative flex-1 flex overflow-hidden">
-        {/* Left/Center Area: Avatar Stage & Voice Controls */}
-        <div className="flex-1 flex flex-col justify-between items-center relative z-10 px-4 py-3 sm:py-4 overflow-y-auto custom-scrollbar">
-          {/* Mobile Theme Switcher */}
-          <div className="sm:hidden mb-1">
+          {/* Center: Theme Selector */}
+          <div className="hidden sm:block">
             <ThemeSwitcher
               currentTheme={currentTheme}
               onSelectTheme={handleSelectTheme}
               activeConfig={activeThemeConfig}
             />
           </div>
+
+          {/* Right Action Icons: Transcript & Settings */}
+          <div className="flex items-center gap-2">
+            {/* Missing API Key Warning Pill */}
+            {!apiKey && (
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-xs font-medium animate-pulse hover:bg-amber-500/30 transition-colors"
+              >
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">API Key Needed</span>
+              </button>
+            )}
+
+            {/* Conversation Side Panel Toggle */}
+            <button
+              onClick={() => setIsSidePanelOpen(!isSidePanelOpen)}
+              className={`relative flex items-center gap-1.5 px-3 py-2 rounded-2xl backdrop-blur-xl border transition-all shadow-md active:scale-95 text-xs font-medium ${
+                isSidePanelOpen
+                  ? 'bg-sky-500/20 text-sky-200 border-sky-400/40 shadow-[0_0_15px_rgba(56,189,248,0.2)]'
+                  : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border-white/10 hover:border-white/25'
+              }`}
+              title={isSidePanelOpen ? 'Collapse Conversation Side Panel' : 'Open Conversation Side Panel'}
+            >
+              {isSidePanelOpen ? <MessageSquare className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+              <span className="hidden sm:inline">Conversation</span>
+              {messages.length > 1 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-sky-500 text-white text-[10px] font-bold">
+                  {messages.length}
+                </span>
+              )}
+            </button>
+
+            {/* Settings Modal Toggle */}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2.5 rounded-2xl backdrop-blur-xl border border-white/10 hover:border-white/25 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all shadow-md active:scale-95"
+              title="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
+      )}
+
+      {/* Main Workspace: Split View with Avatar Stage + Docked Conversation Side Panel */}
+      <div className="relative flex-1 flex overflow-hidden">
+        {/* Left/Center Area: Avatar Stage & Voice Controls */}
+        <div
+          className={`flex-1 flex flex-col justify-between items-center relative z-10 px-4 ${
+            isFullscreen ? 'py-1' : 'py-3 sm:py-4'
+          } overflow-y-auto custom-scrollbar`}
+        >
+          {/* Mobile Theme Switcher */}
+          {!isFullscreen && (
+            <div className="sm:hidden mb-1">
+              <ThemeSwitcher
+                currentTheme={currentTheme}
+                onSelectTheme={handleSelectTheme}
+                activeConfig={activeThemeConfig}
+              />
+            </div>
+          )}
 
           {/* Central Floating Avatar */}
           <div className="flex-1 flex items-center justify-center w-full">
@@ -368,6 +401,8 @@ export const App: React.FC = () => {
               onStopSpeaking={handleInterruptSpeaking}
               isHandsFree={voiceSettings.handsFreeMode}
               lastAssistantText={lastAssistantSpokenRef.current}
+              isFullscreen={isFullscreen}
+              onToggleFullscreen={handleToggleFullscreen}
             />
           </div>
 
@@ -390,19 +425,21 @@ export const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Side Panel: Live Real-Time Conversation Log */}
-        <ConversationPanel
-          isOpen={isSidePanelOpen}
-          onToggle={() => setIsSidePanelOpen(!isSidePanelOpen)}
-          messages={messages}
-          interimTranscript={interimTranscript}
-          avatarState={avatarState}
-          onClear={clearMessages}
-          theme={activeThemeConfig}
-          onSendMessage={handleManualSendMessage}
-          onSpeakMessage={(text) => speak(text)}
-          isMobile={isMobile}
-        />
+        {/* Right Side Panel: Live Real-Time Conversation Log (Hidden in Fullscreen) */}
+        {!isFullscreen && (
+          <ConversationPanel
+            isOpen={isSidePanelOpen}
+            onToggle={() => setIsSidePanelOpen(!isSidePanelOpen)}
+            messages={messages}
+            interimTranscript={interimTranscript}
+            avatarState={avatarState}
+            onClear={clearMessages}
+            theme={activeThemeConfig}
+            onSendMessage={handleManualSendMessage}
+            onSpeakMessage={(text) => speak(text)}
+            isMobile={isMobile}
+          />
+        )}
       </div>
 
       {/* Settings Modal */}

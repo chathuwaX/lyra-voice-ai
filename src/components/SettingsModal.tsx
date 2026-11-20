@@ -149,16 +149,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     type={showKey ? 'text' : 'password'}
                     value={tempApiKey}
                     onChange={(e) => setTempApiKey(e.target.value)}
-                    placeholder="Paste Gemini (AIzaSy...) or Groq (gsk_...) key"
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-sky-400 transition-colors pr-10"
+                    placeholder="Paste Gemini or Groq API key"
+                    autoComplete="new-password"
+                    spellCheck={false}
+                    data-lpignore="true"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-sky-400 transition-colors pr-20"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowKey(!showKey)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
-                  >
-                    {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                    {tempApiKey && (
+                      <button
+                        type="button"
+                        onClick={() => setTempApiKey('')}
+                        className="text-[10px] px-2 py-0.5 rounded bg-white/10 hover:bg-red-500/20 text-slate-400 hover:text-red-300 transition-colors"
+                        title="Clear API key"
+                      >
+                        Clear
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowKey(!showKey)}
+                      className="text-slate-400 hover:text-slate-200"
+                      title={showKey ? 'Hide key' : 'Show key'}
+                    >
+                      {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1">
                   Both are 100% free with no credit card required. Groq keys (<code className="text-amber-300">gsk_...</code>) provide ultra-fast instant (~150ms) inference!

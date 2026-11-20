@@ -21,6 +21,8 @@ interface AvatarStageProps {
   onStopSpeaking: () => void;
   isHandsFree?: boolean;
   lastAssistantText?: string;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 export const AvatarStage: React.FC<AvatarStageProps> = ({
@@ -32,12 +34,13 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
   onStopSpeaking,
   isHandsFree,
   lastAssistantText,
+  isFullscreen = false,
+  onToggleFullscreen,
 }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [imageError, setImageError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [use3DHuman, setUse3DHuman] = useState<boolean>(true);
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -69,22 +72,21 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
 
   return (
     <>
-      {/* Normal Mode Stage Container */}
+      {/* Stage Container */}
       <div
         className={`relative flex flex-col items-center justify-center select-none z-10 transition-all duration-500 ${
-          isFullscreen
-            ? 'fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6'
-            : 'py-6 w-full'
+          isFullscreen ? 'py-2 w-full max-w-4xl' : 'py-6 w-full'
         }`}
       >
-        {/* Fullscreen Close / Exit Button */}
-        {isFullscreen && (
+        {/* Fullscreen Close / Exit Floating Button */}
+        {isFullscreen && onToggleFullscreen && (
           <button
-            onClick={() => setIsFullscreen(false)}
-            className="absolute top-6 right-6 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-semibold backdrop-blur-xl border border-white/20 transition-all shadow-xl active:scale-95"
+            type="button"
+            onClick={onToggleFullscreen}
+            className="fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/90 hover:bg-slate-800 text-white text-xs font-semibold backdrop-blur-xl border border-white/25 transition-all shadow-2xl active:scale-95"
             title="Exit Fullscreen Mode"
           >
-            <Minimize2 className="w-4 h-4" />
+            <Minimize2 className="w-4 h-4 text-cyan-400" />
             <span>Exit Fullscreen</span>
           </button>
         )}
@@ -148,7 +150,7 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
               theme.avatarBorder
             } ${
               isFullscreen
-                ? 'w-80 h-80 sm:w-96 sm:h-96 md:w-[460px] md:h-[460px]'
+                ? 'w-[78vw] max-w-[520px] h-[78vw] max-h-[520px]'
                 : 'w-72 h-72 sm:w-80 sm:h-80 md:w-96 md:h-96'
             }`}
             style={{
@@ -187,17 +189,18 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
                 </div>
               )}
 
-              {/* Mode Switch & Fullscreen Buttons Overlay */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-slate-950/85 backdrop-blur-md border border-white/10 rounded-full p-1 shadow-2xl">
+              {/* Mode Switch & Fullscreen Buttons Overlay (Always on top with z-40) */}
+              <div className="absolute bottom-3.5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 bg-slate-950/90 backdrop-blur-xl border border-white/15 rounded-full p-1 shadow-2xl">
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setUse3DHuman(true);
                   }}
-                  className={`flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
                     use3DHuman
                       ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md'
-                      : 'text-slate-400 hover:text-slate-200'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
                   }`}
                   title="Photorealistic 3D Human Assistant with ARKit 52 blendshapes & Real-Time Visemes"
                 >
@@ -206,14 +209,15 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
                 </button>
 
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setUse3DHuman(false);
                   }}
-                  className={`flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
                     !use3DHuman
                       ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md'
-                      : 'text-slate-400 hover:text-slate-200'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
                   }`}
                   title="2D Portrait View"
                 >
@@ -223,50 +227,64 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
 
                 {/* Fullscreen Toggle Button */}
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setIsFullscreen(!isFullscreen);
+                    onToggleFullscreen?.();
                   }}
-                  className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+                  className="flex items-center gap-1 p-1.5 px-2.5 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-all border-l border-white/10"
                   title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen Immersive Mode'}
                 >
                   {isFullscreen ? (
-                    <Minimize2 className="w-3.5 h-3.5" />
+                    <Minimize2 className="w-3.5 h-3.5 text-cyan-400" />
                   ) : (
-                    <Maximize2 className="w-3.5 h-3.5" />
+                    <Maximize2 className="w-3.5 h-3.5 text-sky-400" />
                   )}
+                  <span className="text-[10px] hidden sm:inline text-sky-200">
+                    {isFullscreen ? 'Exit' : 'Full'}
+                  </span>
                 </button>
               </div>
+
+              {/* Upload 2D Photo Button in top right (Only visible when hovered and in 2D mode, or subtle icon) */}
+              {!use3DHuman && (
+                <div
+                  className={`absolute top-3 right-3 z-40 transition-opacity duration-300 ${
+                    isHovered ? 'opacity-100' : 'opacity-0'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/85 hover:bg-slate-800 text-white text-xs font-medium backdrop-blur-md border border-white/20 transition-all shadow-xl active:scale-95"
+                    title="Upload custom portrait photo"
+                  >
+                    <Upload className="w-3 h-3 text-sky-400" />
+                    <span>Change Photo</span>
+                  </button>
+
+                  {customAvatarUrl && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUploadAvatar(null);
+                      }}
+                      className="mt-1 flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-200 text-[10px] font-medium backdrop-blur-md border border-red-400/30 transition-all"
+                      title="Reset to default portrait"
+                    >
+                      <RotateCcw className="w-2.5 h-2.5" />
+                      <span>Reset</span>
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Subtle holographic sheen overlay */}
               <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 pointer-events-none" />
-
-              {/* Hover overlay for changing avatar / settings (shown on top when hovered) */}
-              <div
-                className={`absolute inset-0 bg-slate-950/75 backdrop-blur-sm flex flex-col items-center justify-center gap-3 transition-opacity duration-300 z-30 ${
-                  isHovered ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-                }`}
-              >
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white text-xs font-medium backdrop-blur-md border border-white/20 transition-all shadow-lg active:scale-95"
-                  title="Upload custom portrait photo"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Upload 2D Photo</span>
-                </button>
-
-                {customAvatarUrl && (
-                  <button
-                    onClick={() => onUploadAvatar(null)}
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-200 text-xs font-medium backdrop-blur-md border border-red-400/30 transition-all"
-                    title="Reset to default portrait"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Reset Default Photo</span>
-                  </button>
-                )}
-              </div>
             </div>
           </div>
 
