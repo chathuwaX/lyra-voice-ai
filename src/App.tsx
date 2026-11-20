@@ -65,6 +65,10 @@ export const App: React.FC = () => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  // Refs for speech recognition controls to avoid circular declaration order
+  const startListeningRef = useRef<() => void>(() => {});
+  const stopListeningRef = useRef<() => void>(() => {});
+
   // Speech Synthesis (TTS)
   const speechCallbacksRef = useRef<{ onEnd?: () => void }>({});
 
@@ -80,6 +84,7 @@ export const App: React.FC = () => {
     {
       onStart: () => {
         setAvatarState('speaking');
+        stopListeningRef.current(); // Ensure microphone is off while Mira is speaking
       },
       onEnd: () => {
         setAvatarState('idle');
@@ -88,6 +93,11 @@ export const App: React.FC = () => {
       onError: (err) => {
         addToast(err, 'error');
         setAvatarState('idle');
+        if (voiceSettings.handsFreeMode && isSpeechSupported) {
+          setTimeout(() => {
+            startListeningRef.current();
+          }, 350);
+        }
       },
     }
   );
@@ -113,6 +123,11 @@ export const App: React.FC = () => {
         speak(reply);
       } else {
         setAvatarState('idle');
+        if (voiceSettings.handsFreeMode && isSpeechSupported) {
+          setTimeout(() => {
+            startListeningRef.current();
+          }, 350);
+        }
       }
     },
     onError: (err) => {
@@ -125,8 +140,11 @@ export const App: React.FC = () => {
     (transcript: string) => {
       if (!transcript.trim()) return;
 
+      // 1. Immediately turn OFF microphone
+      stopListeningRef.current();
+
       if (!apiKey) {
-        addToast('Please enter your Gemini API Key in Settings to chat.', 'error');
+        addToast('Please enter your API Key in Settings to chat.', 'error');
         setIsSettingsOpen(true);
         return;
       }
@@ -152,6 +170,12 @@ export const App: React.FC = () => {
     continuous: voiceSettings.handsFreeMode,
     silenceTimeoutMs: 900, // 900ms fast VAD for real-time capture
   });
+
+  // Keep refs in sync
+  useEffect(() => {
+    startListeningRef.current = startListening;
+    stopListeningRef.current = stopListening;
+  }, [startListening, stopListening]);
 
   // Set avatar state to 'listening' when mic is active and not thinking or speaking
   useEffect(() => {
@@ -196,6 +220,11 @@ export const App: React.FC = () => {
   const handleInterruptSpeaking = () => {
     stopSpeaking();
     setAvatarState('idle');
+    if (voiceSettings.handsFreeMode && isSpeechSupported) {
+      setTimeout(() => {
+        startListening();
+      }, 200);
+    }
   };
 
   const handleManualSendMessage = (text: string) => {

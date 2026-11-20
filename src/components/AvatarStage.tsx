@@ -187,7 +187,7 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
           {avatarState === 'idle' && (
             <>
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Ready & Listening</span>
+              <span>Mic Open (Ready)</span>
             </>
           )}
 
@@ -201,7 +201,7 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
           {avatarState === 'thinking' && (
             <>
               <Sparkles className="w-3.5 h-3.5 text-cyan-300 animate-spin" />
-              <span className="text-cyan-200 font-medium tracking-wide">Gemini Thinking...</span>
+              <span className="text-cyan-200 font-medium tracking-wide">Thinking... (Mic Off)</span>
             </>
           )}
 
@@ -212,7 +212,7 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
                 <span className="w-1 bg-sky-300 rounded-full animate-wave-bar" style={{ animationDelay: '150ms', height: '70%' }} />
                 <span className="w-1 bg-sky-200 rounded-full animate-wave-bar" style={{ animationDelay: '300ms', height: '90%' }} />
               </span>
-              <span className="text-sky-200 font-medium">Mira Speaking</span>
+              <span className="text-sky-200 font-medium">Mira Speaking (Mic Off)</span>
             </>
           )}
 

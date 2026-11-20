@@ -50,13 +50,24 @@ export function useSpeechRecognition({
     }
   };
 
-  // Commit accumulated speech immediately
+  // Commit accumulated speech immediately & auto turn off mic
   const commitSpeech = useCallback(() => {
     clearSilenceTimer();
     const text = accumulatedSpeechRef.current.trim();
     if (text) {
       accumulatedSpeechRef.current = '';
       setInterimTranscript('');
+
+      // Auto turn OFF mic immediately when question is asked
+      isManuallyStoppedRef.current = true;
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+      }
+      setIsListening(false);
+      stopAudioAnalysis();
+
       onFinalResultRef.current?.(text);
     }
   }, []);
@@ -224,7 +235,16 @@ export function useSpeechRecognition({
       startAudioAnalysis();
     } catch (err: any) {
       if (err.name === 'InvalidStateError') {
-        setIsListening(true);
+        // Recognition might be in stopping transition, retry after 200ms
+        setTimeout(() => {
+          try {
+            recognitionRef.current?.start();
+            setIsListening(true);
+            startAudioAnalysis();
+          } catch (e) {
+            setIsListening(true);
+          }
+        }, 200);
       } else {
         console.error('Error starting recognition:', err);
         onError?.('Could not activate microphone recognition.');

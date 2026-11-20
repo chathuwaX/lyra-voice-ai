@@ -48,7 +48,7 @@ export function useSpeechSynthesis(
     volume: 1.0,
     isMuted: false,
     autoSpeak: true,
-    handsFreeMode: false,
+    handsFreeMode: true, // Default to true: auto-off mic during speech and auto-open mic when speech finishes!
     ...initialSettings,
   });
 
