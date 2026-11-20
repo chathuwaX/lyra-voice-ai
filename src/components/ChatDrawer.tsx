@@ -115,7 +115,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                     ) : (
                       <>
                         <Bot className="w-3 h-3 text-cyan-300" />
-                        <span>Lyra</span>
+                        <span>Mira</span>
                       </>
                     )}
                     <span>•</span>
@@ -155,7 +155,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
         {/* Drawer Footer */}
         <div className="p-4 border-t border-white/10 text-center text-[11px] text-slate-400 flex items-center justify-between">
           <span>{messages.length} messages</span>
-          <span className="text-slate-500">Lyra AI Powered by Gemini 2.5</span>
+          <span className="text-slate-500">Mira AI Powered by Gemini 2.5</span>
         </div>
       </div>
     </>

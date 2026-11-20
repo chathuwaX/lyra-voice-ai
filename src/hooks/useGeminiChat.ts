@@ -13,7 +13,7 @@ export function useGeminiChat({ onAssistantReply, onError }: UseGeminiChatOption
       {
         id: 'welcome-1',
         role: 'assistant',
-        content: "Hello! I am Lyra, your Antigravity voice assistant. How can I help you today?",
+        content: "Hello! I am Mira, your Antigravity voice assistant. How can I help you today?",
         timestamp: new Date(),
       },
     ];

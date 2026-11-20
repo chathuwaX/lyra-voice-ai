@@ -1,8 +1,8 @@
-# Lyra — Antigravity Voice AI Assistant 🌌✨
+# Mira — Antigravity Voice AI Assistant 🌌✨
 
 A complete, production-ready talking AI Assistant web application with an ethereal antigravity aesthetic, real-time two-way voice conversations, and Google Gemini API integration.
 
-![Lyra Preview](/public/avatar.png)
+![Mira Preview](/public/avatar.png)
 
 ---
 
@@ -20,7 +20,7 @@ A complete, production-ready talking AI Assistant web application with an ethere
 ### 2. Intelligent Real-Time Two-Way Voice
 - **Voice Input (STT):**
   - **Push-to-Talk:** Click the glowing mic button or press **Spacebar**.
-  - **Hands-Free Continuous Mode:** Seamless turn-taking where Lyra automatically listens again after answering.
+  - **Hands-Free Continuous Mode:** Seamless turn-taking where Mira automatically listens again after answering.
   - **Live Interim Speech Bubble:** Visualizes transcribed speech in real-time as you talk.
   - **Text Input Fallback:** Built-in text bar for quiet environments or non-STT browsers.
 - **Voice Output (TTS):**
@@ -54,8 +54,8 @@ A complete, production-ready talking AI Assistant web application with an ethere
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/chathuwaX/lyra-voice-ai.git
-   cd lyra-voice-ai
+   git clone https://github.com/chathuwaX/mira-voice-ai.git
+   cd mira-voice-ai
    ```
 
 2. Install dependencies:

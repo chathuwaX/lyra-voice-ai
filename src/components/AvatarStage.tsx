@@ -128,7 +128,7 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
               // Clean SVG Fallback in case of image load error
               <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-slate-800 to-slate-950 text-slate-300">
                 <Sparkles className="w-16 h-16 text-sky-400 mb-2 animate-pulse" />
-                <span className="text-sm font-medium tracking-wide">Lyra Assistant</span>
+                <span className="text-sm font-medium tracking-wide">Mira Assistant</span>
               </div>
             )}
 
@@ -212,7 +212,7 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
                 <span className="w-1 bg-sky-300 rounded-full animate-wave-bar" style={{ animationDelay: '150ms', height: '70%' }} />
                 <span className="w-1 bg-sky-200 rounded-full animate-wave-bar" style={{ animationDelay: '300ms', height: '90%' }} />
               </span>
-              <span className="text-sky-200 font-medium">Lyra Speaking</span>
+              <span className="text-sky-200 font-medium">Mira Speaking</span>
             </>
           )}
 

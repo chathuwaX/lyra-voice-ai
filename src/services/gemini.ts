@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { Message } from '../types';
 
-export const DEFAULT_SYSTEM_INSTRUCTION = `You are "Lyra", an intelligent, warm, and highly capable voice AI assistant in an antigravity holographic interface. 
+export const DEFAULT_SYSTEM_INSTRUCTION = `You are "Mira", an intelligent, warm, and highly capable voice AI assistant in an antigravity holographic interface. 
 You are speaking directly in a real-time voice conversation with the user.
 
 Key conversational rules:

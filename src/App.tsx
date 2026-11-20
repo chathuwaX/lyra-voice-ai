@@ -204,7 +204,7 @@ export const App: React.FC = () => {
           </div>
           <div>
             <h1 className="text-sm sm:text-base font-bold tracking-tight text-white flex items-center gap-2">
-              <span>LYRA</span>
+              <span>MIRA</span>
               <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/30">
                 Voice AI
               </span>
