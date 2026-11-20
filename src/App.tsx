@@ -149,23 +149,22 @@ export const App: React.FC = () => {
       const cleanUserText = transcript.trim();
       if (!cleanUserText) return;
 
-      // Anti-Echo Filter: Check if the mic heard Mira's own speaker output
-      const normalizedUser = cleanUserText.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
-      const normalizedAssistant = lastAssistantSpokenRef.current.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
-      const timeSinceSpeech = Date.now() - lastAssistantFinishedTimeRef.current;
-
-      // If user text matches what Mira just said or echo within 3.5s, drop it
-      if (
-        timeSinceSpeech < 3500 &&
-        normalizedAssistant &&
-        normalizedUser.length > 2 &&
-        (normalizedAssistant.includes(normalizedUser) || normalizedUser.includes(normalizedAssistant))
-      ) {
-        console.warn('Ignored acoustic echo from Mira speaker:', cleanUserText);
+      // Anti-Echo Check: If assistant is currently speaking, ignore
+      if (isSpeaking) {
         return;
       }
 
-      // Immediately shut off microphone
+      // If text is verbatim identical to the assistant's previous message, ignore echo
+      const normalizedUser = cleanUserText.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+      const normalizedAssistant = lastAssistantSpokenRef.current.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+      if (normalizedAssistant && normalizedUser === normalizedAssistant) {
+        return;
+      }
+
+      // Clear previous assistant spoken text so next questions are never blocked
+      lastAssistantSpokenRef.current = '';
+
+      // Immediately shut off microphone while processing & speaking
       stopListeningRef.current();
 
       if (!apiKey) {
@@ -176,7 +175,7 @@ export const App: React.FC = () => {
 
       sendMessage(cleanUserText);
     },
-    [apiKey, sendMessage, addToast]
+    [apiKey, isSpeaking, sendMessage, addToast]
   );
 
   const {
@@ -211,13 +210,14 @@ export const App: React.FC = () => {
     }
   }, [isListening, avatarState, setAvatarState]);
 
-  // Hands-free continuous loop: when assistant finishes speaking, resume listening cleanly after echo settles
+  // Hands-free continuous loop: when assistant finishes speaking, resume listening cleanly with fresh mic session
   useEffect(() => {
     speechCallbacksRef.current.onEnd = () => {
       if (voiceSettings.handsFreeMode && isSpeechSupported) {
         setTimeout(() => {
+          lastAssistantSpokenRef.current = '';
           startListeningRef.current();
-        }, 750);
+        }, 550);
       }
     };
   }, [voiceSettings.handsFreeMode, isSpeechSupported]);
