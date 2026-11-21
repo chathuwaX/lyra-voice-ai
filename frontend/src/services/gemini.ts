@@ -35,7 +35,7 @@ export function sanitizeErrorMessage(rawMessage?: string, userKey?: string): str
 
 export async function generateGeminiReply(
   apiKey: string,
-  modelName: string = 'gemini-3.8-flash',
+  modelName: string = 'qwen/qwen3.8-27b',
   history: Message[],
   systemInstruction: string = DEFAULT_SYSTEM_INSTRUCTION,
   onChunk?: (partialText: string) => void

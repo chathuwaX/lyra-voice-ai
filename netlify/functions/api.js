@@ -1,7 +1,10 @@
 /**
  * Netlify Serverless Function for Mira Voice AI
  * Native ES module using built-in fetch (Node 18/20).
- * Zero external dependencies required for Netlify bundling.
+ * Features:
+ * - 6s/7.5s AbortSignal timeouts to prevent Netlify 10s 504 Gateway Timeouts
+ * - Automatic dual-engine failover: Gemini <-> Groq
+ * - Ultra-fast sub-second responses using Qwen 3.8 / GPT-OSS on Groq
  */
 
 const CORS_HEADERS = {
@@ -10,6 +13,80 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Content-Type': 'application/json',
 };
+
+async function queryGroq(apiKey, messages, systemInstruction, modelName) {
+  const model = modelName && (modelName.includes('gpt-oss') || modelName.includes('qwen'))
+    ? modelName
+    : 'qwen/qwen3.8-27b';
+
+  const formattedMessages = [
+    ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
+    ...messages.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
+  ];
+
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    signal: AbortSignal.timeout(7500), // Max 7.5s to ensure response before Netlify 10s timeout
+    body: JSON.stringify({
+      model,
+      messages: formattedMessages,
+      max_tokens: 180,
+      temperature: 0.65,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `Groq API returned HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content?.trim();
+  if (!text) throw new Error('Groq returned empty completion text');
+  return text;
+}
+
+async function queryGemini(apiKey, messages, systemInstruction, modelName) {
+  const model = !modelName || modelName.includes('llama') ? 'gemini-2.5-flash' : modelName;
+  const contents = messages.map((m) => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
+
+  const payload = {
+    contents,
+    generationConfig: {
+      temperature: 0.65,
+      maxOutputTokens: 180,
+    },
+  };
+  if (systemInstruction) {
+    payload.systemInstruction = { parts: [{ text: systemInstruction }] };
+  }
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal: AbortSignal.timeout(6000), // 6s timeout so we can seamlessly fail over if Google hangs
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `Gemini API returned HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!text) throw new Error('Gemini returned empty text');
+  return text;
+}
 
 export async function handler(event, context) {
   // 1. Handle Preflight CORS
@@ -22,7 +99,6 @@ export async function handler(event, context) {
   }
 
   const rawPath = event.path || '';
-  // Normalize path (handle /api/chat, /.netlify/functions/api/chat, /chat)
   const normalizedPath = rawPath.replace(/^\/\.netlify\/functions\/api/, '').replace(/^\/api/, '');
 
   // 2. Health Check
@@ -47,9 +123,9 @@ export async function handler(event, context) {
       body: JSON.stringify({
         success: true,
         models: [
-          { id: 'gemini-3.8-flash', provider: 'google', name: 'Gemini 3.8 Flash (Recommended)' },
-          { id: 'gemini-2.0-flash', provider: 'google', name: 'Gemini 2.0 Flash' },
-          { id: 'openai/gpt-oss-20b', provider: 'groq', name: 'GPT-OSS 20B (Groq)' },
+          { id: 'qwen/qwen3.8-27b', provider: 'groq', name: 'Qwen 3.8 27B (Ultra-Fast ~400ms)' },
+          { id: 'openai/gpt-oss-20b', provider: 'groq', name: 'GPT-OSS 20B (Groq Fast)' },
+          { id: 'gemini-2.5-flash', provider: 'google', name: 'Gemini 2.5 Flash' },
         ],
       }),
     };
@@ -69,7 +145,7 @@ export async function handler(event, context) {
         };
       }
 
-      const { messages = [], modelName = 'gemini-3.8-flash', systemInstruction } = body;
+      const { messages = [], modelName = 'qwen/qwen3.8-27b', systemInstruction } = body;
 
       if (!Array.isArray(messages) || messages.length === 0) {
         return {
@@ -79,21 +155,16 @@ export async function handler(event, context) {
         };
       }
 
-      // Check API Key: Request header override > Netlify environment variable
+      // Check API Keys
       const headerKey =
         event.headers['x-api-key'] ||
         event.headers['X-Api-Key'] ||
         (event.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
 
-      const geminiKey = headerKey && !headerKey.startsWith('gsk_') ? headerKey : process.env.GEMINI_API_KEY;
-      const groqKey = headerKey && headerKey.startsWith('gsk_') ? headerKey : process.env.GROQ_API_KEY;
+      const clientIsGroq = headerKey && headerKey.startsWith('gsk_');
+      const geminiKey = !clientIsGroq && headerKey ? headerKey : process.env.GEMINI_API_KEY;
+      const groqKey = clientIsGroq ? headerKey : process.env.GROQ_API_KEY;
 
-      const isGroq =
-        (headerKey && headerKey.startsWith('gsk_')) ||
-        (!geminiKey && groqKey) ||
-        (modelName && (modelName.includes('gpt') || modelName.includes('qwen')));
-
-      // Fallback: If neither key is available
       if (!geminiKey && !groqKey) {
         return {
           statusCode: 500,
@@ -101,88 +172,45 @@ export async function handler(event, context) {
           body: JSON.stringify({
             success: false,
             error:
-              'GEMINI_API_KEY is not configured in Netlify Environment Variables. Please go to Netlify Dashboard -> Site configuration -> Environment variables and add GEMINI_API_KEY.',
+              'No API key configured. Please set GEMINI_API_KEY or GROQ_API_KEY in your Netlify Environment Variables.',
           }),
         };
       }
 
       let replyText = '';
+      let lastError = null;
 
-      if (isGroq && groqKey) {
-        // --- GROQ API CALL ---
-        const groqModel = modelName.includes('gpt') || modelName.includes('qwen') ? modelName : 'openai/gpt-oss-20b';
-        const formattedMessages = [
-          ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
-          ...messages.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
-        ];
-
-        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${groqKey}`,
-          },
-          body: JSON.stringify({
-            model: groqModel,
-            messages: formattedMessages,
-            max_tokens: 200,
-            temperature: 0.65,
-          }),
-        });
-
-        if (!groqRes.ok) {
-          const errData = await groqRes.json().catch(() => ({}));
-          throw new Error(errData?.error?.message || `Groq API error ${groqRes.status}`);
+      // Prioritize Groq if available (sub-second latency ~400ms is ideal for digital human voice chat)
+      if (groqKey) {
+        try {
+          replyText = await queryGroq(groqKey, messages, systemInstruction, modelName);
+        } catch (groqErr) {
+          console.warn('Groq query failed, trying Gemini fallback:', groqErr.message);
+          lastError = groqErr;
+          if (geminiKey) {
+            try {
+              replyText = await queryGemini(geminiKey, messages, systemInstruction, modelName);
+            } catch (geminiErr) {
+              lastError = geminiErr;
+            }
+          }
         }
-
-        const data = await groqRes.json();
-        replyText = data?.choices?.[0]?.message?.content?.trim() || '';
-      } else {
-        // --- GEMINI REST API CALL ---
-        const effectiveModel = !modelName || modelName.includes('llama') ? 'gemini-3.8-flash' : modelName;
-        const contents = messages.map((m) => ({
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: m.content }],
-        }));
-
-        const payload = {
-          contents,
-          generationConfig: {
-            temperature: 0.65,
-            maxOutputTokens: 200,
-          },
-        };
-
-        if (systemInstruction) {
-          payload.systemInstruction = {
-            parts: [{ text: systemInstruction }],
-          };
+      } else if (geminiKey) {
+        try {
+          replyText = await queryGemini(geminiKey, messages, systemInstruction, modelName);
+        } catch (geminiErr) {
+          lastError = geminiErr;
         }
-
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${effectiveModel}:generateContent?key=${geminiKey}`;
-
-        const geminiRes = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
-
-        if (!geminiRes.ok) {
-          const errData = await geminiRes.json().catch(() => ({}));
-          throw new Error(errData?.error?.message || `Google Gemini API returned status ${geminiRes.status}`);
-        }
-
-        const data = await geminiRes.json();
-        replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
       }
 
       if (!replyText) {
         return {
           statusCode: 500,
           headers: CORS_HEADERS,
-          body: JSON.stringify({ success: false, error: 'AI returned an empty response.' }),
+          body: JSON.stringify({
+            success: false,
+            error: lastError?.message || 'AI engine failed to generate a response.',
+          }),
         };
       }
 
