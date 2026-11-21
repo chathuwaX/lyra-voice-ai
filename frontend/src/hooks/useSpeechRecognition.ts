@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-// Browser SpeechRecognition interface
 interface IWindow extends Window {
   SpeechRecognition?: any;
   webkitSpeechRecognition?: any;
@@ -18,7 +17,7 @@ export function useSpeechRecognition({
   onFinalResult,
   onInterimResult,
   onError,
-  silenceTimeoutMs = 1500,
+  silenceTimeoutMs = 1200,
 }: UseSpeechRecognitionOptions = {}) {
   const [isListening, setIsListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
@@ -26,14 +25,10 @@ export function useSpeechRecognition({
   const [isSupported, setIsSupported] = useState(true);
 
   const recognitionRef = useRef<any>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const micStreamRef = useRef<MediaStream | null>(null);
-  const animFrameRef = useRef<number | null>(null);
-
   const isListeningRef = useRef(false);
   const silenceTimerRef = useRef<any>(null);
   const accumulatedSpeechRef = useRef<string>('');
+  const volumeAnimRef = useRef<number | null>(null);
 
   const onFinalResultRef = useRef(onFinalResult);
   onFinalResultRef.current = onFinalResult;
@@ -60,19 +55,41 @@ export function useSpeechRecognition({
     }
   };
 
+  const stopVolumeAnimation = () => {
+    if (volumeAnimRef.current) {
+      cancelAnimationFrame(volumeAnimRef.current);
+      volumeAnimRef.current = null;
+    }
+    setAudioLevel(0);
+  };
+
+  const triggerSpeechAudioLevelPulse = () => {
+    // Pulse audio level to animate avatar voice orb naturally while speaking
+    setAudioLevel(0.6 + Math.random() * 0.4);
+    if (volumeAnimRef.current) {
+      cancelAnimationFrame(volumeAnimRef.current);
+    }
+    const decay = () => {
+      setAudioLevel((prev) => {
+        const next = prev * 0.88;
+        if (next > 0.05 && isListeningRef.current) {
+          volumeAnimRef.current = requestAnimationFrame(decay);
+          return next;
+        }
+        return 0;
+      });
+    };
+    volumeAnimRef.current = requestAnimationFrame(decay);
+  };
+
   // Safe internal stop
   const cleanupRecognition = useCallback(() => {
     clearSilenceTimer();
+    stopVolumeAnimation();
     isListeningRef.current = false;
     accumulatedSpeechRef.current = '';
     setInterimTranscript('');
     setIsListening(false);
-    setAudioLevel(0);
-
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = null;
-    }
 
     if (recognitionRef.current) {
       try {
@@ -86,94 +103,36 @@ export function useSpeechRecognition({
     }
   }, []);
 
-  // Commit speech & turn off mic
+  // Commit recognized speech & notify
   const commitSpeech = useCallback(() => {
     clearSilenceTimer();
-    const text = accumulatedSpeechRef.current.trim();
+    stopVolumeAnimation();
 
+    const text = accumulatedSpeechRef.current.trim();
     if (!text || !isListeningRef.current) {
       cleanupRecognition();
       return;
     }
 
-    // Immediately stop mic so it doesn't hear anything else
+    // Stop listening before sending
     cleanupRecognition();
 
-    // Send recognized text
+    // Deliver recognized text to parent
     onFinalResultRef.current?.(text);
   }, [cleanupRecognition]);
 
-  // Audio level visualizer loop
-  const startVisualizer = async () => {
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) return;
-      if (!micStreamRef.current || !micStreamRef.current.active) {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-        }).catch(() => null);
-        if (!stream) return;
-        micStreamRef.current = stream;
-      }
-
-      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        audioContextRef.current = audioCtx;
-
-        const analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 64;
-        analyserRef.current = analyser;
-
-        const source = audioCtx.createMediaStreamSource(micStreamRef.current);
-        source.connect(analyser);
-      } else if (audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume().catch(() => {});
-      }
-
-      const analyser = analyserRef.current;
-      if (!analyser) return;
-
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-      const updateVolume = () => {
-        if (!isListeningRef.current) {
-          setAudioLevel(0);
-          return;
-        }
-
-        analyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          sum += dataArray[i];
-        }
-        const avg = sum / dataArray.length;
-        setAudioLevel(Math.min(1, Math.max(0, avg / 128)));
-
-        animFrameRef.current = requestAnimationFrame(updateVolume);
-      };
-
-      updateVolume();
-    } catch (err) {
-      // Visualizer is non-critical; speech recognition works regardless
-    }
-  };
-
-  // Start listening with a FRESH instance every single turn!
+  // Start listening
   const startListening = useCallback(() => {
     const win = window as unknown as IWindow;
     const SpeechRecognitionAPI = win.SpeechRecognition || win.webkitSpeechRecognition;
 
     if (!SpeechRecognitionAPI) {
-      onErrorRef.current?.('Speech recognition is not supported in this browser.');
+      onErrorRef.current?.('Speech recognition is not supported in this browser. Please use Google Chrome, Edge, or Safari.');
       return;
     }
 
     // Clean up any lingering previous session first
     cleanupRecognition();
-
     clearSilenceTimer();
     accumulatedSpeechRef.current = '';
     setInterimTranscript('');
@@ -181,11 +140,14 @@ export function useSpeechRecognition({
     setIsListening(true);
 
     try {
-      // Create a fresh instance for this turn
       const recognition = new SpeechRecognitionAPI();
-      recognition.continuous = true;
+
+      // Mobile devices (Android/iOS) perform much better with continuous: false
+      const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+      recognition.continuous = !isMobile;
       recognition.interimResults = true;
       recognition.lang = 'en-US';
+      recognition.maxAlternatives = 1;
 
       recognition.onresult = (event: any) => {
         if (!isListeningRef.current) return;
@@ -208,10 +170,12 @@ export function useSpeechRecognition({
           accumulatedSpeechRef.current = activeText;
           setInterimTranscript(activeText);
           onInterimResultRef.current?.(activeText);
+          triggerSpeechAudioLevelPulse();
 
           clearSilenceTimer();
 
-          if (finalBatch) {
+          if (finalBatch && isMobile) {
+            // On mobile, final batch immediately commits
             commitSpeech();
           } else {
             silenceTimerRef.current = setTimeout(() => {
@@ -228,7 +192,7 @@ export function useSpeechRecognition({
         clearSilenceTimer();
 
         if (event.error === 'not-allowed') {
-          onErrorRef.current?.('Microphone permission blocked. Please allow microphone access in your browser to talk to Mira.');
+          onErrorRef.current?.('Microphone permission blocked. Please allow microphone in your browser address bar.');
           cleanupRecognition();
         } else if (event.error === 'network') {
           onErrorRef.current?.('Speech recognition network error. Please check your internet connection.');
@@ -238,32 +202,32 @@ export function useSpeechRecognition({
       };
 
       recognition.onend = () => {
-        // If ended while still supposed to be listening (e.g. Chrome silent pause), restart if text was empty
+        // If recognition naturally ends while user was speaking, commit what was heard
         if (isListeningRef.current) {
           if (accumulatedSpeechRef.current.trim()) {
             commitSpeech();
           } else {
-            // Restart seamlessly
-            try {
-              recognition.start();
-            } catch (e) {
-              setIsListening(false);
-              isListeningRef.current = false;
-            }
+            // Re-arm cleanly after 300ms if still listening
+            setTimeout(() => {
+              if (isListeningRef.current && recognitionRef.current) {
+                try {
+                  recognition.start();
+                } catch (e) {
+                  cleanupRecognition();
+                }
+              }
+            }, 300);
           }
         } else {
-          setIsListening(false);
-          isListeningRef.current = false;
+          cleanupRecognition();
         }
       };
 
       recognitionRef.current = recognition;
       recognition.start();
-      startVisualizer();
     } catch (err: any) {
-      console.warn('Error starting fresh recognition instance:', err);
-      setIsListening(false);
-      isListeningRef.current = false;
+      console.warn('Error starting speech recognition:', err);
+      cleanupRecognition();
     }
   }, [cleanupRecognition, commitSpeech, silenceTimeoutMs]);
 
@@ -278,19 +242,6 @@ export function useSpeechRecognition({
       startListening();
     }
   }, [startListening, stopListening]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      cleanupRecognition();
-      if (micStreamRef.current) {
-        micStreamRef.current.getTracks().forEach((track) => track.stop());
-      }
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close().catch(() => {});
-      }
-    };
-  }, [cleanupRecognition]);
 
   return {
     isListening,

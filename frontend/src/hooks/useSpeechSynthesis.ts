@@ -31,6 +31,23 @@ export function stripMarkdownForSpeech(text: string): string {
   return cleaned;
 }
 
+/**
+ * Mobile-safe audio unlocker:
+ * Unlocks the Web Speech API on iOS Safari and Android Chrome by playing a 0-volume token
+ * on user tap/interaction so future async TTS calls are never blocked by browser autoplay policy.
+ */
+export function unlockSpeechAudio() {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+  try {
+    window.speechSynthesis.resume();
+    const silent = new SpeechSynthesisUtterance('');
+    silent.volume = 0.01;
+    silent.rate = 2;
+    silent.lang = 'en-US';
+    window.speechSynthesis.speak(silent);
+  } catch (e) {}
+}
+
 export function useSpeechSynthesis(
   initialSettings?: Partial<VoiceSettings>,
   callbacks?: {
@@ -48,7 +65,7 @@ export function useSpeechSynthesis(
     volume: 1.0,
     isMuted: false,
     autoSpeak: true,
-    handsFreeMode: true, // Default to true: auto-off mic during speech and auto-open mic when speech finishes!
+    handsFreeMode: true,
     ...initialSettings,
   });
 
@@ -72,7 +89,6 @@ export function useSpeechSynthesis(
             return prev;
           }
 
-          // Search preference: US/UK English natural or female voices
           const preferredVoice =
             availableVoices.find(
               (v) =>
@@ -122,19 +138,44 @@ export function useSpeechSynthesis(
       const cleanText = stripMarkdownForSpeech(rawText);
       if (!cleanText) return;
 
+      // Unpause speech synthesizer if paused (common mobile/Chrome quirk)
+      try {
+        window.speechSynthesis.resume();
+      } catch (e) {}
+
       stopSpeaking();
 
       const utterance = new SpeechSynthesisUtterance(cleanText);
       currentUtteranceRef.current = utterance;
 
+      // Always set explicit English language for reliable synthesis on mobile
+      utterance.lang = 'en-US';
       utterance.rate = Math.max(0.7, Math.min(1.8, settings.rate));
       utterance.pitch = Math.max(0.6, Math.min(1.4, settings.pitch));
       utterance.volume = Math.max(0, Math.min(1.0, settings.volume));
 
-      if (settings.voiceURI && voices.length > 0) {
-        const selected = voices.find((v) => v.voiceURI === settings.voiceURI);
+      if (voices.length > 0) {
+        let selected = null;
+        if (settings.voiceURI) {
+          selected = voices.find((v) => v.voiceURI === settings.voiceURI);
+        }
+        if (!selected) {
+          selected =
+            voices.find(
+              (v) =>
+                v.lang.startsWith('en') &&
+                (v.name.includes('Natural') ||
+                 v.name.includes('Jenny') ||
+                 v.name.includes('Aria') ||
+                 v.name.includes('Samantha') ||
+                 v.name.toLowerCase().includes('female'))
+            ) ||
+            voices.find((v) => v.lang.startsWith('en')) ||
+            voices[0];
+        }
         if (selected) {
           utterance.voice = selected;
+          if (selected.lang) utterance.lang = selected.lang;
         }
       }
 
@@ -149,15 +190,22 @@ export function useSpeechSynthesis(
       };
 
       utterance.onerror = (e) => {
-        console.warn('SpeechSynthesis error:', e);
         setIsSpeaking(false);
         if (e.error !== 'interrupted' && e.error !== 'canceled') {
-          callbacksRef.current?.onError?.(`Speech synthesis error: ${e.error}`);
+          console.warn('SpeechSynthesis error:', e);
+          callbacksRef.current?.onError?.(`Speech synthesis note: ${e.error}`);
         }
       };
 
-      // Workaround for Chrome long utterance bug
-      window.speechSynthesis.speak(utterance);
+      // Slight 40ms delay allows cancel() to clear cleanly before speaking new audio
+      setTimeout(() => {
+        try {
+          window.speechSynthesis.resume();
+          window.speechSynthesis.speak(utterance);
+        } catch (e) {
+          console.warn('Could not speak utterance:', e);
+        }
+      }, 40);
     },
     [settings, voices, stopSpeaking]
   );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Mic, MicOff, Send, Radio, MessageSquare, Volume2, VolumeX } from 'lucide-react';
 import { ThemeConfig } from '../types';
+import { unlockSpeechAudio } from '../hooks/useSpeechSynthesis';
 
 interface VoiceControlsProps {
   theme: ThemeConfig;
@@ -58,12 +59,26 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
   const handleTextSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim()) return;
+    unlockSpeechAudio();
     onSendMessage(inputText);
     setInputText('');
   };
 
+  const handleMicClick = () => {
+    unlockSpeechAudio();
+    onToggleListening();
+  };
+
   return (
     <div className="relative z-20 w-full max-w-xl mx-auto px-4 flex flex-col items-center gap-3">
+      {/* Listening status prompt */}
+      {isListening && !interimTranscript && (
+        <div className="px-4 py-1.5 rounded-full bg-sky-950/80 backdrop-blur-xl border border-sky-400/40 text-sky-200 text-xs shadow-lg text-center animate-pulse flex items-center justify-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping shrink-0" />
+          <span>Listening... speak your question now</span>
+        </div>
+      )}
+
       {/* Live Interim Transcript Bubble */}
       {interimTranscript && (
         <div className="w-full max-w-md px-4 py-2.5 rounded-2xl bg-sky-950/70 backdrop-blur-xl border border-sky-400/40 text-sky-100 text-sm shadow-xl text-center animate-fade-in flex items-center justify-center gap-2">
@@ -106,7 +121,7 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
           )}
 
           <button
-            onClick={onToggleListening}
+            onClick={handleMicClick}
             disabled={!isSpeechSupported}
             className={`relative flex items-center justify-center w-14 h-14 rounded-full transition-all duration-300 active:scale-95 shadow-xl ${
               isListening
