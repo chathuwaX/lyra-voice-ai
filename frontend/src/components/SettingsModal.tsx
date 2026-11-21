@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Key, Eye, EyeOff, Mic, Cpu, MessageSquareText, Sliders, ExternalLink, RotateCcw } from 'lucide-react';
+import { X, Mic, MessageSquareText, Sliders, RotateCcw } from 'lucide-react';
 import { ThemeConfig, VoiceSettings } from '../types';
 import { DEFAULT_SYSTEM_INSTRUCTION } from '../services/gemini';
 
@@ -7,42 +7,33 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   theme: ThemeConfig;
-  apiKey: string;
-  onSaveApiKey: (key: string) => void;
-  modelName: string;
-  onSaveModel: (model: string) => void;
   systemPrompt: string;
   onSaveSystemPrompt: (prompt: string) => void;
   voices: SpeechSynthesisVoice[];
   voiceSettings: VoiceSettings;
   onUpdateVoiceSettings: (settings: Partial<VoiceSettings>) => void;
+  apiKey?: string;
+  onSaveApiKey?: (key: string) => void;
+  modelName?: string;
+  onSaveModel?: (model: string) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   theme,
-  apiKey,
-  onSaveApiKey,
-  modelName,
-  onSaveModel,
   systemPrompt,
   onSaveSystemPrompt,
   voices,
   voiceSettings,
   onUpdateVoiceSettings,
 }) => {
-  const [tempApiKey, setTempApiKey] = useState(apiKey);
-  const [showKey, setShowKey] = useState(false);
-  const [tempModel, setTempModel] = useState(modelName);
   const [tempSystemPrompt, setTempSystemPrompt] = useState(systemPrompt);
-  const [activeTab, setActiveTab] = useState<'general' | 'voice' | 'system'>('general');
+  const [activeTab, setActiveTab] = useState<'voice' | 'system'>('voice');
 
   if (!isOpen) return null;
 
   const handleSave = () => {
-    onSaveApiKey(tempApiKey);
-    onSaveModel(tempModel);
     onSaveSystemPrompt(tempSystemPrompt);
     onClose();
   };
@@ -77,18 +68,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Tab Navigation */}
         <div className="flex border-b border-white/10 px-6 gap-6 text-sm font-medium">
           <button
-            onClick={() => setActiveTab('general')}
-            className={`py-3 relative transition-colors ${
-              activeTab === 'general' ? 'text-sky-400' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            AI Engine
-            {activeTab === 'general' && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-400 rounded-full" />
-            )}
-          </button>
-
-          <button
             onClick={() => setActiveTab('voice')}
             className={`py-3 relative transition-colors ${
               activeTab === 'voice' ? 'text-sky-400' : 'text-slate-400 hover:text-slate-200'
@@ -115,93 +94,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Tab Content */}
         <div className="p-6 overflow-y-auto space-y-5 custom-scrollbar flex-1">
-          {/* TAB 1: GENERAL / AI ENGINE */}
-          {activeTab === 'general' && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Key className="w-3.5 h-3.5 text-sky-400" />
-                    AI API Key (Gemini or Groq)
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <a
-                      href="https://aistudio.google.com/app/apikey"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[11px] text-sky-400 hover:underline flex items-center gap-1 font-normal"
-                    >
-                      Free Gemini Key <ExternalLink className="w-2.5 h-2.5" />
-                    </a>
-                    <span className="text-slate-600">|</span>
-                    <a
-                      href="https://console.groq.com/keys"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[11px] text-amber-400 hover:underline flex items-center gap-1 font-normal"
-                    >
-                      Free Groq (Ultra-Fast) <ExternalLink className="w-2.5 h-2.5" />
-                    </a>
-                  </div>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showKey ? 'text' : 'password'}
-                    value={tempApiKey}
-                    onChange={(e) => setTempApiKey(e.target.value)}
-                    placeholder="Paste Gemini or Groq API key"
-                    autoComplete="new-password"
-                    spellCheck={false}
-                    data-lpignore="true"
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-sky-400 transition-colors pr-20"
-                  />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                    {tempApiKey && (
-                      <button
-                        type="button"
-                        onClick={() => setTempApiKey('')}
-                        className="text-[10px] px-2 py-0.5 rounded bg-white/10 hover:bg-red-500/20 text-slate-400 hover:text-red-300 transition-colors"
-                        title="Clear API key"
-                      >
-                        Clear
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setShowKey(!showKey)}
-                      className="text-slate-400 hover:text-slate-200"
-                      title={showKey ? 'Hide key' : 'Show key'}
-                    >
-                      {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Both are 100% free with no credit card required. Groq keys (<code className="text-amber-300">gsk_...</code>) provide ultra-fast instant (~150ms) inference!
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center gap-1.5">
-                  <Cpu className="w-3.5 h-3.5 text-sky-400" />
-                  Model Selection
-                </label>
-                <select
-                  value={tempModel}
-                  onChange={(e) => setTempModel(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-sky-400 transition-colors"
-                >
-                  <option value="openai/gpt-oss-20b">GPT-OSS 20B (Groq - Ultra-Fast ~20ms Real-Time)</option>
-                  <option value="qwen/qwen3.8-27b">Qwen 3.8 27B (Groq - High Quality ~25ms)</option>
-                  <option value="gemini-3.8-flash">Gemini 3.8 Flash (Google - Fast real-time voice)</option>
-                  <option value="gemini-2.0-flash">Gemini 2.0 Flash (Google - Stable)</option>
-                  <option value="gemini-3.8-pro">Gemini 3.8 Pro (Google - Advanced reasoning)</option>
-                </select>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: VOICE & SPEECH */}
+          {/* TAB 1: VOICE & SPEECH */}
           {activeTab === 'voice' && (
             <div className="space-y-4">
               <div>
@@ -275,7 +168,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           )}
 
-          {/* TAB 3: PERSONA & PROMPT */}
+          {/* TAB 2: PERSONA & PROMPT */}
           {activeTab === 'system' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">

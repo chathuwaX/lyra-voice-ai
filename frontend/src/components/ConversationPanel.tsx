@@ -245,7 +245,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
           </form>
           <div className="flex items-center justify-between text-[10px] text-slate-500 mt-2 px-1">
             <span>{messages.length} messages</span>
-            <span>Gemini 3.8 Flash • Real-time</span>
+            <span>Real-Time Voice AI</span>
           </div>
         </div>
       </aside>

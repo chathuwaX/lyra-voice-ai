@@ -11,7 +11,7 @@ import { ToastContainer, ToastMessage } from './components/Toast';
 import { useGeminiChat } from './hooks/useGeminiChat';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from './hooks/useSpeechSynthesis';
-import { MessageSquare, Settings, Sparkles, AlertCircle, PanelRightOpen } from 'lucide-react';
+import { MessageSquare, Settings, Sparkles, PanelRightOpen } from 'lucide-react';
 
 export const App: React.FC = () => {
   // Theme management
@@ -192,15 +192,9 @@ export const App: React.FC = () => {
       // Immediately shut off microphone while processing & speaking
       stopListeningRef.current();
 
-      if (!apiKey) {
-        addToast('Please enter your API Key in Settings to chat.', 'error');
-        setIsSettingsOpen(true);
-        return;
-      }
-
       sendMessage(cleanUserText);
     },
-    [apiKey, isSpeaking, sendMessage, addToast]
+    [isSpeaking, sendMessage]
   );
 
   const {
@@ -278,11 +272,6 @@ export const App: React.FC = () => {
   };
 
   const handleManualSendMessage = (text: string) => {
-    if (!apiKey) {
-      addToast('Please enter your Gemini API Key in Settings to chat.', 'error');
-      setIsSettingsOpen(true);
-      return;
-    }
     sendMessage(text);
   };
 
@@ -329,17 +318,6 @@ export const App: React.FC = () => {
 
           {/* Right Action Icons: Transcript & Settings */}
           <div className="flex items-center gap-2">
-            {/* Missing API Key Warning Pill */}
-            {!apiKey && (
-              <button
-                onClick={() => setIsSettingsOpen(true)}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-xs font-medium animate-pulse hover:bg-amber-500/30 transition-colors"
-              >
-                <AlertCircle className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">API Key Needed</span>
-              </button>
-            )}
-
             {/* Conversation Side Panel Toggle */}
             <button
               onClick={() => setIsSidePanelOpen(!isSidePanelOpen)}

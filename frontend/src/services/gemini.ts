@@ -41,9 +41,6 @@ export async function generateGeminiReply(
   onChunk?: (partialText: string) => void
 ): Promise<string> {
   const cleanKey = apiKey?.trim() || '';
-  if (!cleanKey) {
-    throw new Error('Please enter your free API Key in Settings to start the conversation.');
-  }
 
   // Filter out system or interim messages
   const validMessages = history.filter((m) => m.role === 'user' || m.role === 'assistant');
@@ -51,10 +48,54 @@ export async function generateGeminiReply(
     throw new Error('No user prompt found in history');
   }
 
-  // 1. Check if user provided an ultra-fast Groq API key (starts with "gsk_")
+  // 1. Primary Strategy: Call Express Backend Serverless API (/api/chat)
+  const apiBase = (import.meta.env.VITE_API_URL as string) || '/api';
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (cleanKey) {
+      headers['X-Api-Key'] = cleanKey;
+    }
+
+    const backendRes = await fetch(`${apiBase}/chat`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        messages: validMessages,
+        modelName,
+        systemInstruction,
+      }),
+    });
+
+    if (backendRes.ok) {
+      const data = await backendRes.json();
+      if (data?.reply) {
+        onChunk?.(data.reply);
+        return data.reply;
+      }
+    } else {
+      const errData = await backendRes.json().catch(() => ({}));
+      if (errData?.error && !cleanKey) {
+        throw new Error(errData.error);
+      }
+    }
+  } catch (backendErr: any) {
+    if (backendErr?.message && !backendErr.message.includes('fetch')) {
+      throw backendErr;
+    }
+    // Backend unreachable (e.g. running standalone static build without local Express server)
+    // Fall back to client-side direct calling if client key is provided
+  }
+
+  // 2. Client-side fallback: requires user API key
+  if (!cleanKey) {
+    throw new Error('AI assistant service is currently unavailable. Please try again shortly.');
+  }
+
+  // Groq direct client call
   if (cleanKey.startsWith('gsk_')) {
     try {
-      // Active Groq models
       const validGroqModels = ['openai/gpt-oss-20b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-120b'];
       const groqModel = validGroqModels.includes(modelName) ? modelName : 'openai/gpt-oss-20b';
 
@@ -92,7 +133,7 @@ export async function generateGeminiReply(
     }
   }
 
-  // 2. Google Gemini Engine (with SDK + fast secure REST fallback)
+  // Google Gemini direct client call
   const effectiveModel =
     !modelName || modelName === 'gemini-2.5-flash'
       ? 'gemini-3.8-flash'
@@ -108,7 +149,6 @@ export async function generateGeminiReply(
   try {
     const ai = new GoogleGenAI({ apiKey: cleanKey });
 
-    // Try generateContentStream for real-time streaming
     if (typeof (ai.models as any).generateContentStream === 'function') {
       const responseStream = await (ai.models as any).generateContentStream({
         model: effectiveModel,
@@ -136,7 +176,6 @@ export async function generateGeminiReply(
       }
     }
 
-    // Direct generateContent call
     const response = await ai.models.generateContent({
       model: effectiveModel,
       contents,
@@ -155,7 +194,6 @@ export async function generateGeminiReply(
       return text.trim();
     }
   } catch (sdkError: any) {
-    // Direct REST fallback - uses secure x-goog-api-key header instead of URL query parameter
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${effectiveModel}:generateContent`;
 
