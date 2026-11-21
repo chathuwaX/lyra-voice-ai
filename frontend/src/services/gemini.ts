@@ -138,10 +138,8 @@ export async function generateGeminiReply(
 
   // Google Gemini direct client call
   const effectiveModel =
-    !modelName || modelName === 'gemini-2.5-flash'
-      ? 'gemini-3.8-flash'
-      : modelName.includes('llama')
-      ? 'gemini-3.8-flash'
+    !modelName || modelName.includes('llama') || modelName.includes('qwen') || modelName.includes('2.0') || modelName.includes('2.5')
+      ? 'gemini-flash-lite-latest'
       : modelName;
 
   const contents = validMessages.map((msg) => ({

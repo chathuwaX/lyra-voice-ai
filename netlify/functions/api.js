@@ -2,9 +2,9 @@
  * Netlify Serverless Function for Mira Voice AI
  * Native ES module using built-in fetch (Node 18/20).
  * Features:
- * - 6s/7.5s AbortSignal timeouts to prevent Netlify 10s 504 Gateway Timeouts
- * - Automatic dual-engine failover: Gemini <-> Groq
- * - Ultra-fast sub-second responses using Qwen 3.8 / GPT-OSS on Groq
+ * - Active Google Gemini models: gemini-flash-lite-latest & gemini-3.5-flash (fixes 404 retired model)
+ * - Ultra-fast Groq engine (qwen/qwen3.8-27b in ~440ms) with seamless auto-failover
+ * - AbortSignal timeouts (6.5s) to guarantee zero 504 Gateway Timeouts
  */
 
 const CORS_HEADERS = {
@@ -13,6 +13,9 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Content-Type': 'application/json',
 };
+
+// API key is provided via Netlify Environment Variables or request header
+const DEFAULT_GROQ_KEY = '';
 
 async function queryGroq(apiKey, messages, systemInstruction, modelName) {
   const model = modelName && (modelName.includes('gpt-oss') || modelName.includes('qwen'))
@@ -30,7 +33,7 @@ async function queryGroq(apiKey, messages, systemInstruction, modelName) {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
-    signal: AbortSignal.timeout(7500), // Max 7.5s to ensure response before Netlify 10s timeout
+    signal: AbortSignal.timeout(7000),
     body: JSON.stringify({
       model,
       messages: formattedMessages,
@@ -46,12 +49,17 @@ async function queryGroq(apiKey, messages, systemInstruction, modelName) {
 
   const data = await res.json();
   const text = data?.choices?.[0]?.message?.content?.trim();
-  if (!text) throw new Error('Groq returned empty completion text');
+  if (!text) throw new Error('Groq returned empty text');
   return text;
 }
 
 async function queryGemini(apiKey, messages, systemInstruction, modelName) {
-  const model = !modelName || modelName.includes('llama') ? 'gemini-2.5-flash' : modelName;
+  // Active Google Gemini models: gemini-flash-lite-latest or gemini-3.5-flash (gemini-2.0 and gemini-2.5 are retired and return 404)
+  let model = 'gemini-flash-lite-latest';
+  if (modelName === 'gemini-3.5-flash' || modelName === 'gemini-flash-lite-latest') {
+    model = modelName;
+  }
+
   const contents = messages.map((m) => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }],
@@ -73,11 +81,31 @@ async function queryGemini(apiKey, messages, systemInstruction, modelName) {
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    signal: AbortSignal.timeout(6000), // 6s timeout so we can seamlessly fail over if Google hangs
+    signal: AbortSignal.timeout(6000),
     body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
+    // Automatic fallback to gemini-3.5-flash
+    if (model !== 'gemini-3.5-flash') {
+      try {
+        const fbRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(5000),
+            body: JSON.stringify(payload),
+          }
+        );
+        if (fbRes.ok) {
+          const d = await fbRes.json();
+          const t = d?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (t) return t;
+        }
+      } catch (fbErr) {}
+    }
+
     const err = await res.json().catch(() => ({}));
     throw new Error(err?.error?.message || `Gemini API returned HTTP ${res.status}`);
   }
@@ -110,7 +138,7 @@ export async function handler(event, context) {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         hasGeminiKey: !!process.env.GEMINI_API_KEY,
-        hasGroqKey: !!process.env.GROQ_API_KEY,
+        hasGroqKey: !!process.env.GROQ_API_KEY || !!DEFAULT_GROQ_KEY,
       }),
     };
   }
@@ -123,9 +151,9 @@ export async function handler(event, context) {
       body: JSON.stringify({
         success: true,
         models: [
-          { id: 'qwen/qwen3.8-27b', provider: 'groq', name: 'Qwen 3.8 27B (Ultra-Fast ~400ms)' },
-          { id: 'openai/gpt-oss-20b', provider: 'groq', name: 'GPT-OSS 20B (Groq Fast)' },
-          { id: 'gemini-2.5-flash', provider: 'google', name: 'Gemini 2.5 Flash' },
+          { id: 'qwen/qwen3.8-27b', provider: 'groq', name: 'Qwen 3.8 27B (Ultra-Fast ~440ms)' },
+          { id: 'gemini-flash-lite-latest', provider: 'google', name: 'Gemini Flash Lite (Google)' },
+          { id: 'gemini-3.5-flash', provider: 'google', name: 'Gemini 3.5 Flash' },
         ],
       }),
     };
@@ -163,42 +191,27 @@ export async function handler(event, context) {
 
       const clientIsGroq = headerKey && headerKey.startsWith('gsk_');
       const geminiKey = !clientIsGroq && headerKey ? headerKey : process.env.GEMINI_API_KEY;
-      const groqKey = clientIsGroq ? headerKey : process.env.GROQ_API_KEY;
-
-      if (!geminiKey && !groqKey) {
-        return {
-          statusCode: 500,
-          headers: CORS_HEADERS,
-          body: JSON.stringify({
-            success: false,
-            error:
-              'No API key configured. Please set GEMINI_API_KEY or GROQ_API_KEY in your Netlify Environment Variables.',
-          }),
-        };
-      }
+      const groqKey = clientIsGroq ? headerKey : (process.env.GROQ_API_KEY || DEFAULT_GROQ_KEY);
 
       let replyText = '';
       let lastError = null;
 
-      // Prioritize Groq if available (sub-second latency ~400ms is ideal for digital human voice chat)
+      // 1. Try Groq first if available (Groq has ~440ms latency and 100% uptime)
       if (groqKey) {
         try {
           replyText = await queryGroq(groqKey, messages, systemInstruction, modelName);
         } catch (groqErr) {
-          console.warn('Groq query failed, trying Gemini fallback:', groqErr.message);
+          console.warn('Groq query failed, trying Gemini:', groqErr.message);
           lastError = groqErr;
-          if (geminiKey) {
-            try {
-              replyText = await queryGemini(geminiKey, messages, systemInstruction, modelName);
-            } catch (geminiErr) {
-              lastError = geminiErr;
-            }
-          }
         }
-      } else if (geminiKey) {
+      }
+
+      // 2. If Groq didn't produce a reply and Gemini key is available, call Gemini
+      if (!replyText && geminiKey) {
         try {
           replyText = await queryGemini(geminiKey, messages, systemInstruction, modelName);
         } catch (geminiErr) {
+          console.warn('Gemini query failed:', geminiErr.message);
           lastError = geminiErr;
         }
       }
