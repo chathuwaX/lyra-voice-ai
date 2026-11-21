@@ -374,8 +374,6 @@ export const App: React.FC = () => {
               avatarState={avatarState}
               theme={activeThemeConfig}
               audioLevel={audioLevel}
-              customAvatarUrl={customAvatarUrl}
-              onUploadAvatar={saveCustomAvatar}
               onStopSpeaking={handleInterruptSpeaking}
               isHandsFree={voiceSettings.handsFreeMode}
               lastAssistantText={lastAssistantSpokenRef.current}

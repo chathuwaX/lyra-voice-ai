@@ -1,12 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React from 'react';
 import { AvatarState, ThemeConfig } from '../types';
 import {
-  Upload,
-  RotateCcw,
   VolumeX,
   Sparkles,
-  User,
-  Box,
   Maximize2,
   Minimize2,
 } from 'lucide-react';
@@ -16,8 +12,8 @@ interface AvatarStageProps {
   avatarState: AvatarState;
   theme: ThemeConfig;
   audioLevel: number; // 0 to 1
-  customAvatarUrl: string | null;
-  onUploadAvatar: (dataUrl: string | null) => void;
+  customAvatarUrl?: string | null;
+  onUploadAvatar?: (dataUrl: string | null) => void;
   onStopSpeaking: () => void;
   isHandsFree?: boolean;
   lastAssistantText?: string;
@@ -30,35 +26,12 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
   theme,
   audioLevel,
   customAvatarUrl,
-  onUploadAvatar,
   onStopSpeaking,
   isHandsFree,
   lastAssistantText,
   isFullscreen = false,
   onToggleFullscreen,
 }) => {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [imageError, setImageError] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const [use3DHuman, setUse3DHuman] = useState<boolean>(true);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 8 * 1024 * 1024) {
-        alert('Image must be under 8MB');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        onUploadAvatar(reader.result as string);
-        setImageError(false);
-        setUse3DHuman(false);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const avatarSrc = customAvatarUrl || '/avatar.png';
   const isSpeaking = avatarState === 'speaking';
 
@@ -108,8 +81,6 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
         <div
           className="relative transition-transform duration-500 ease-out animate-float-slow flex items-center justify-center"
           style={{ transform: `scale(${audioReactiveScale})` }}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
         >
           {/* State 1: Thinking Orbiting Ring & Particles */}
           {avatarState === 'thinking' && (
@@ -144,7 +115,7 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
             />
           )}
 
-          {/* Central Portrait Container */}
+          {/* Central 3D Digital Human Container */}
           <div
             className={`relative rounded-full overflow-hidden p-1.5 transition-all duration-700 backdrop-blur-md shadow-2xl ${
               theme.avatarBorder
@@ -158,128 +129,42 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
                 'linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.03) 100%)',
             }}
           >
-            {/* Inner 3D / 2D container */}
+            {/* Inner 3D Container - Photorealistic Digital Human */}
             <div className="relative w-full h-full rounded-full overflow-hidden bg-slate-950 shadow-inner">
-              {use3DHuman ? (
-                // 3D Photorealistic Digital Human with ARKit 52 blendshapes & real-time viseme lip-sync
-                <div className="w-full h-full cursor-grab active:cursor-grabbing">
-                  <HumanCanvas
-                    avatarState={avatarState}
-                    isSpeaking={isSpeaking}
-                    audioLevel={audioLevel}
-                    themeGlow={theme.ringColor}
-                    fallbackImageUrl={avatarSrc}
-                  />
-                </div>
-              ) : !imageError ? (
-                // 2D Portrait Fallback
-                <img
-                  src={avatarSrc}
-                  alt="AI Assistant Avatar"
-                  className={`w-full h-full object-cover transition-all duration-700 ${
-                    avatarState === 'speaking' ? 'brightness-105 contrast-[1.03]' : ''
-                  }`}
-                  onError={() => setImageError(true)}
+              <div className="w-full h-full cursor-grab active:cursor-grabbing">
+                <HumanCanvas
+                  avatarState={avatarState}
+                  isSpeaking={isSpeaking}
+                  audioLevel={audioLevel}
+                  themeGlow={theme.ringColor}
+                  fallbackImageUrl={avatarSrc}
                 />
-              ) : (
-                // Clean SVG Fallback in case of image load error
-                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-slate-800 to-slate-950 text-slate-300">
-                  <Sparkles className="w-16 h-16 text-sky-400 mb-2 animate-pulse" />
-                  <span className="text-sm font-medium tracking-wide">Mira Assistant</span>
-                </div>
-              )}
-
-              {/* Mode Switch & Fullscreen Buttons Overlay (Always on top with z-40) */}
-              <div className="absolute bottom-3.5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 bg-slate-950/90 backdrop-blur-xl border border-white/15 rounded-full p-1 shadow-2xl">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setUse3DHuman(true);
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
-                    use3DHuman
-                      ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                  }`}
-                  title="Photorealistic 3D Human Assistant with ARKit 52 blendshapes & Real-Time Visemes"
-                >
-                  <Box className="w-3.5 h-3.5" />
-                  <span>3D Human</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setUse3DHuman(false);
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
-                    !use3DHuman
-                      ? 'bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-                  }`}
-                  title="2D Portrait View"
-                >
-                  <User className="w-3.5 h-3.5" />
-                  <span>2D Photo</span>
-                </button>
-
-                {/* Fullscreen Toggle Button */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleFullscreen?.();
-                  }}
-                  className="flex items-center gap-1 p-1.5 px-2.5 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-all border-l border-white/10"
-                  title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen Immersive Mode'}
-                >
-                  {isFullscreen ? (
-                    <Minimize2 className="w-3.5 h-3.5 text-cyan-400" />
-                  ) : (
-                    <Maximize2 className="w-3.5 h-3.5 text-sky-400" />
-                  )}
-                  <span className="text-[10px] hidden sm:inline text-sky-200">
-                    {isFullscreen ? 'Exit' : 'Full'}
-                  </span>
-                </button>
               </div>
 
-              {/* Upload 2D Photo Button in top right (Only visible when hovered and in 2D mode, or subtle icon) */}
-              {!use3DHuman && (
-                <div
-                  className={`absolute top-3 right-3 z-40 transition-opacity duration-300 ${
-                    isHovered ? 'opacity-100' : 'opacity-0'
-                  }`}
-                >
+              {/* Fullscreen Toggle Overlay Button */}
+              {onToggleFullscreen && (
+                <div className="absolute bottom-3.5 left-1/2 -translate-x-1/2 z-40">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      fileInputRef.current?.click();
+                      onToggleFullscreen();
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/85 hover:bg-slate-800 text-white text-xs font-medium backdrop-blur-md border border-white/20 transition-all shadow-xl active:scale-95"
-                    title="Upload custom portrait photo"
+                    className="flex items-center gap-1.5 px-3 py-1 bg-slate-950/85 hover:bg-slate-900 text-slate-300 hover:text-white text-[11px] font-medium backdrop-blur-xl border border-white/15 rounded-full shadow-xl transition-all active:scale-95"
+                    title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen Immersive Mode'}
                   >
-                    <Upload className="w-3 h-3 text-sky-400" />
-                    <span>Change Photo</span>
+                    {isFullscreen ? (
+                      <>
+                        <Minimize2 className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Exit Fullscreen</span>
+                      </>
+                    ) : (
+                      <>
+                        <Maximize2 className="w-3.5 h-3.5 text-sky-400" />
+                        <span>Fullscreen</span>
+                      </>
+                    )}
                   </button>
-
-                  {customAvatarUrl && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onUploadAvatar(null);
-                      }}
-                      className="mt-1 flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-200 text-[10px] font-medium backdrop-blur-md border border-red-400/30 transition-all"
-                      title="Reset to default portrait"
-                    >
-                      <RotateCcw className="w-2.5 h-2.5" />
-                      <span>Reset</span>
-                    </button>
-                  )}
                 </div>
               )}
 
@@ -287,15 +172,6 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
               <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 pointer-events-none" />
             </div>
           </div>
-
-          {/* Hidden File Input for Custom Avatar */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleFileChange}
-          />
         </div>
 
         {/* State Status Pill Indicator */}
