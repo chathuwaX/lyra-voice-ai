@@ -50,11 +50,9 @@ export function getModels(req, res) {
   res.status(200).json({
     success: true,
     models: [
-      { id: 'openai/gpt-oss-20b', provider: 'groq', name: 'GPT-OSS 20B (Ultra-Fast ~20ms)' },
-      { id: 'qwen/qwen3.8-27b', provider: 'groq', name: 'Qwen 3.8 27B (High Quality ~25ms)' },
-      { id: 'gemini-3.8-flash', provider: 'google', name: 'Gemini 3.8 Flash (Google Fast)' },
-      { id: 'gemini-2.0-flash', provider: 'google', name: 'Gemini 2.0 Flash' },
-      { id: 'gemini-3.8-pro', provider: 'google', name: 'Gemini 3.8 Pro' },
+      { id: 'gemini-flash-lite-latest', provider: 'google', name: 'Gemini Flash Lite (Google)' },
+      { id: 'qwen/qwen3.8-27b', provider: 'groq', name: 'Qwen 3.8 27B (Ultra-Fast ~440ms)' },
+      { id: 'gemini-3.5-flash', provider: 'google', name: 'Gemini 3.5 Flash' },
     ],
   });
 }

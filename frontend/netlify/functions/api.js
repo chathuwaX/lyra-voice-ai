@@ -2,9 +2,9 @@
  * Netlify Serverless Function for Mira Voice AI
  * Native ES module using built-in fetch (Node 18/20).
  * Features:
- * - Active Google Gemini models: gemini-flash-lite-latest & gemini-3.5-flash (fixes 404 retired model)
+ * - Active Google Gemini models: gemini-flash-lite-latest & gemini-3.5-flash
  * - Ultra-fast Groq engine (qwen/qwen3.8-27b in ~440ms) with seamless auto-failover
- * - AbortSignal timeouts (6.5s) to guarantee zero 504 Gateway Timeouts
+ * - Dynamic 9.2s latency budget to prevent premature timeout aborts while staying under Netlify 10s ceiling
  */
 
 const CORS_HEADERS = {
@@ -27,7 +27,7 @@ Core Communication Rules:
 5. Voice Formatting: do NOT use markdown symbols, bullet points (*, -), headers (#), asterisks, or code fences because everything is read aloud by voice synthesis.
 6. Follow-Up Flow: remember conversation context, never repeat already explained facts, and answer follow-ups directly.`;
 
-async function queryGroq(apiKey, messages, systemInstruction, modelName) {
+async function queryGroq(apiKey, messages, systemInstruction, modelName, timeoutMs = 3500) {
   const model = modelName && (modelName.includes('gpt-oss') || modelName.includes('qwen'))
     ? modelName
     : 'qwen/qwen3.8-27b';
@@ -43,7 +43,7 @@ async function queryGroq(apiKey, messages, systemInstruction, modelName) {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
-    signal: AbortSignal.timeout(7000),
+    signal: AbortSignal.timeout(timeoutMs),
     body: JSON.stringify({
       model,
       messages: formattedMessages,
@@ -63,8 +63,8 @@ async function queryGroq(apiKey, messages, systemInstruction, modelName) {
   return text;
 }
 
-async function queryGemini(apiKey, messages, systemInstruction, modelName) {
-  // Active Google Gemini models: gemini-flash-lite-latest or gemini-3.5-flash (gemini-2.0 and gemini-2.5 are retired and return 404)
+async function queryGemini(apiKey, messages, systemInstruction, modelName, timeoutMs = 9200) {
+  // Active Google Gemini models: gemini-flash-lite-latest or gemini-3.5-flash
   let model = 'gemini-flash-lite-latest';
   if (modelName === 'gemini-3.5-flash' || modelName === 'gemini-flash-lite-latest') {
     model = modelName;
@@ -91,20 +91,20 @@ async function queryGemini(apiKey, messages, systemInstruction, modelName) {
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    signal: AbortSignal.timeout(6000),
+    signal: AbortSignal.timeout(timeoutMs),
     body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
-    // Automatic fallback to gemini-3.5-flash
-    if (model !== 'gemini-3.5-flash') {
+    // Only attempt fallback to gemini-3.5-flash if 404 (model not found) and we have sufficient time left
+    if (res.status === 404 && model !== 'gemini-3.5-flash' && timeoutMs > 3500) {
       try {
         const fbRes = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            signal: AbortSignal.timeout(5000),
+            signal: AbortSignal.timeout(Math.min(timeoutMs - 1000, 4000)),
             body: JSON.stringify(payload),
           }
         );
@@ -113,7 +113,9 @@ async function queryGemini(apiKey, messages, systemInstruction, modelName) {
           const t = d?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
           if (t) return t;
         }
-      } catch (fbErr) {}
+      } catch (fbErr) {
+        // Fallback aborted or failed
+      }
     }
 
     const err = await res.json().catch(() => ({}));
@@ -161,8 +163,8 @@ export async function handler(event, context) {
       body: JSON.stringify({
         success: true,
         models: [
-          { id: 'qwen/qwen3.8-27b', provider: 'groq', name: 'Qwen 3.8 27B (Ultra-Fast ~440ms)' },
           { id: 'gemini-flash-lite-latest', provider: 'google', name: 'Gemini Flash Lite (Google)' },
+          { id: 'qwen/qwen3.8-27b', provider: 'groq', name: 'Qwen 3.8 27B (Ultra-Fast ~440ms)' },
           { id: 'gemini-3.5-flash', provider: 'google', name: 'Gemini 3.5 Flash' },
         ],
       }),
@@ -171,6 +173,7 @@ export async function handler(event, context) {
 
   // 4. Chat Endpoint
   if (event.httpMethod === 'POST' && (normalizedPath === '/chat' || normalizedPath === '/chat/')) {
+    const startTime = Date.now();
     try {
       let body = {};
       try {
@@ -183,7 +186,7 @@ export async function handler(event, context) {
         };
       }
 
-      const { messages = [], modelName = 'qwen/qwen3.8-27b', systemInstruction } = body;
+      const { messages = [], modelName = 'gemini-flash-lite-latest', systemInstruction } = body;
       const effectiveInstruction = systemInstruction || DEFAULT_SYSTEM_INSTRUCTION;
 
       if (!Array.isArray(messages) || messages.length === 0) {
@@ -207,10 +210,10 @@ export async function handler(event, context) {
       let replyText = '';
       let lastError = null;
 
-      // 1. Try Groq first if available (Groq has ~440ms latency and 100% uptime)
+      // 1. Try Groq first if available (Groq has ultra-fast ~440ms latency)
       if (groqKey) {
         try {
-          replyText = await queryGroq(groqKey, messages, effectiveInstruction, modelName);
+          replyText = await queryGroq(groqKey, messages, effectiveInstruction, modelName, 3500);
         } catch (groqErr) {
           console.warn('Groq query failed, trying Gemini:', groqErr.message);
           lastError = groqErr;
@@ -219,8 +222,11 @@ export async function handler(event, context) {
 
       // 2. If Groq didn't produce a reply and Gemini key is available, call Gemini
       if (!replyText && geminiKey) {
+        const elapsed = Date.now() - startTime;
+        // Keep execution under 9.4s to stay inside Netlify's 10s ceiling
+        const remainingBudget = Math.max(2500, 9300 - elapsed);
         try {
-          replyText = await queryGemini(geminiKey, messages, effectiveInstruction, modelName);
+          replyText = await queryGemini(geminiKey, messages, effectiveInstruction, modelName, remainingBudget);
         } catch (geminiErr) {
           console.warn('Gemini query failed:', geminiErr.message);
           lastError = geminiErr;
@@ -228,12 +234,16 @@ export async function handler(event, context) {
       }
 
       if (!replyText) {
+        let userMessage = lastError?.message || 'AI engine failed to generate a response.';
+        if (lastError?.name === 'TimeoutError' || userMessage.includes('timeout') || userMessage.includes('aborted')) {
+          userMessage = 'The AI service took a little longer than usual to respond. Please try asking again.';
+        }
         return {
           statusCode: 500,
           headers: CORS_HEADERS,
           body: JSON.stringify({
             success: false,
-            error: lastError?.message || 'AI engine failed to generate a response.',
+            error: userMessage,
           }),
         };
       }
@@ -248,12 +258,16 @@ export async function handler(event, context) {
         }),
       };
     } catch (err) {
+      let errMsg = err.message || 'Server error processing AI response.';
+      if (err.name === 'TimeoutError' || errMsg.includes('timeout') || errMsg.includes('aborted')) {
+        errMsg = 'The AI service took a little longer than usual to respond. Please try asking again.';
+      }
       return {
         statusCode: 500,
         headers: CORS_HEADERS,
         body: JSON.stringify({
           success: false,
-          error: err.message || 'Server error processing AI response.',
+          error: errMsg,
         }),
       };
     }

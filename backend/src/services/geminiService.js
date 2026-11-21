@@ -2,7 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 
 export async function generateGeminiReply({
   apiKey,
-  modelName = 'gemini-3.8-flash',
+  modelName = 'gemini-flash-lite-latest',
   messages = [],
   systemInstruction,
 }) {
@@ -12,7 +12,9 @@ export async function generateGeminiReply({
   }
 
   const effectiveModel =
-    !modelName || modelName.includes('llama') ? 'gemini-3.8-flash' : modelName;
+    !modelName || modelName.includes('llama') || modelName.includes('qwen') || modelName.includes('2.0') || modelName.includes('2.5') || modelName.includes('3.8')
+      ? 'gemini-flash-lite-latest'
+      : modelName;
 
   const validMessages = messages.filter((m) => m.role === 'user' || m.role === 'assistant');
   const contents = validMessages.map((msg) => ({
