@@ -211,7 +211,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 placeholder="Enter system prompt for voice persona..."
               />
               <p className="text-[11px] text-slate-400">
-                Mira is tuned to respond concisely (2-4 sentences max) and actively ask natural follow-up questions to keep real-time conversation flowing smoothly.
+                Mira is tuned to speak in simple, everyday English with short, natural responses (2-4 sentences) like a real human friend.
               </p>
             </div>
           )}

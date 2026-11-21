@@ -17,6 +17,16 @@ const CORS_HEADERS = {
 // API key is provided via Netlify Environment Variables or request header
 const DEFAULT_GROQ_KEY = '';
 
+const DEFAULT_SYSTEM_INSTRUCTION = `You are "Mira", a friendly, warm, and natural human AI companion in real-time voice conversation.
+
+Core Communication Rules:
+1. Use Simple English: everyday vocabulary, short clear sentences, no jargon or technical buzzwords.
+2. Keep Answers Short and Natural: 2 to 4 sentences for normal questions. Never write long essays or articles. Answer directly.
+3. Match the User's Need: simple question = simple brief answer. Complex question = simple explanation first. Break hard topics into easy pieces.
+4. Talk Like a Real Human: relaxed, friendly tone like a helpful companion. Never repeat the user's question back before answering.
+5. Voice Formatting: do NOT use markdown symbols, bullet points (*, -), headers (#), asterisks, or code fences because everything is read aloud by voice synthesis.
+6. Follow-Up Flow: remember conversation context, never repeat already explained facts, and answer follow-ups directly.`;
+
 async function queryGroq(apiKey, messages, systemInstruction, modelName) {
   const model = modelName && (modelName.includes('gpt-oss') || modelName.includes('qwen'))
     ? modelName
@@ -174,6 +184,7 @@ export async function handler(event, context) {
       }
 
       const { messages = [], modelName = 'qwen/qwen3.8-27b', systemInstruction } = body;
+      const effectiveInstruction = systemInstruction || DEFAULT_SYSTEM_INSTRUCTION;
 
       if (!Array.isArray(messages) || messages.length === 0) {
         return {
@@ -199,7 +210,7 @@ export async function handler(event, context) {
       // 1. Try Groq first if available (Groq has ~440ms latency and 100% uptime)
       if (groqKey) {
         try {
-          replyText = await queryGroq(groqKey, messages, systemInstruction, modelName);
+          replyText = await queryGroq(groqKey, messages, effectiveInstruction, modelName);
         } catch (groqErr) {
           console.warn('Groq query failed, trying Gemini:', groqErr.message);
           lastError = groqErr;
@@ -209,7 +220,7 @@ export async function handler(event, context) {
       // 2. If Groq didn't produce a reply and Gemini key is available, call Gemini
       if (!replyText && geminiKey) {
         try {
-          replyText = await queryGemini(geminiKey, messages, systemInstruction, modelName);
+          replyText = await queryGemini(geminiKey, messages, effectiveInstruction, modelName);
         } catch (geminiErr) {
           console.warn('Gemini query failed:', geminiErr.message);
           lastError = geminiErr;

@@ -42,7 +42,14 @@ export function useGeminiChat({ onAssistantReply, onError }: UseGeminiChatOption
   });
 
   const [systemPrompt, setSystemPrompt] = useState<string>(() => {
-    return localStorage.getItem('antigravity_system_prompt') || DEFAULT_SYSTEM_INSTRUCTION;
+    const saved = localStorage.getItem('antigravity_system_prompt');
+    const version = localStorage.getItem('antigravity_prompt_version');
+    if (!saved || version !== 'v2') {
+      localStorage.setItem('antigravity_system_prompt', DEFAULT_SYSTEM_INSTRUCTION);
+      localStorage.setItem('antigravity_prompt_version', 'v2');
+      return DEFAULT_SYSTEM_INSTRUCTION;
+    }
+    return saved;
   });
 
   const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(() => {
