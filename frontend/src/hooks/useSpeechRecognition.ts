@@ -18,7 +18,7 @@ export function useSpeechRecognition({
   onFinalResult,
   onInterimResult,
   onError,
-  silenceTimeoutMs = 1000,
+  silenceTimeoutMs = 1500,
 }: UseSpeechRecognitionOptions = {}) {
   const [isListening, setIsListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
@@ -106,6 +106,7 @@ export function useSpeechRecognition({
   // Audio level visualizer loop
   const startVisualizer = async () => {
     try {
+      if (!navigator.mediaDevices?.getUserMedia) return;
       if (!micStreamRef.current || !micStreamRef.current.active) {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -113,7 +114,8 @@ export function useSpeechRecognition({
             noiseSuppression: true,
             autoGainControl: true,
           },
-        });
+        }).catch(() => null);
+        if (!stream) return;
         micStreamRef.current = stream;
       }
 
@@ -226,8 +228,10 @@ export function useSpeechRecognition({
         clearSilenceTimer();
 
         if (event.error === 'not-allowed') {
-          onErrorRef.current?.('Microphone permission denied.');
+          onErrorRef.current?.('Microphone permission blocked. Please allow microphone access in your browser to talk to Mira.');
           cleanupRecognition();
+        } else if (event.error === 'network') {
+          onErrorRef.current?.('Speech recognition network error. Please check your internet connection.');
         } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
           console.warn('SpeechRecognition error:', event.error);
         }

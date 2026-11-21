@@ -1,20 +1,17 @@
-# Netlify Configuration for Mira Voice AI (React + Vite + Express Serverless)
-
+# Netlify Configuration for Mira Voice AI
 [build]
   base = "frontend"
   publish = "dist"
   command = "npm run build"
-  functions = "../backend/netlify/functions"
 
 [build.environment]
   NODE_VERSION = "20"
 
 [functions]
-  directory = "backend/netlify/functions"
+  directory = "netlify/functions"
   node_bundler = "esbuild"
-  included_files = ["backend/src/**"]
 
-# API Rewrite: Forward all /api/* calls to Express Netlify Serverless Function
+# API Rewrite: Forward all /api/* calls to Netlify Serverless Function
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mic, MessageSquareText, Sliders, RotateCcw } from 'lucide-react';
+import { X, Mic, MessageSquareText, Sliders, RotateCcw, Key, Eye, EyeOff } from 'lucide-react';
 import { ThemeConfig, VoiceSettings } from '../types';
 import { DEFAULT_SYSTEM_INSTRUCTION } from '../services/gemini';
 
@@ -27,14 +27,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   voices,
   voiceSettings,
   onUpdateVoiceSettings,
+  apiKey = '',
+  onSaveApiKey,
 }) => {
   const [tempSystemPrompt, setTempSystemPrompt] = useState(systemPrompt);
-  const [activeTab, setActiveTab] = useState<'voice' | 'system'>('voice');
+  const [tempApiKey, setTempApiKey] = useState(apiKey);
+  const [showKey, setShowKey] = useState(false);
+  const [activeTab, setActiveTab] = useState<'voice' | 'system' | 'api'>('voice');
 
   if (!isOpen) return null;
 
   const handleSave = () => {
     onSaveSystemPrompt(tempSystemPrompt);
+    if (onSaveApiKey) {
+      onSaveApiKey(tempApiKey);
+    }
     onClose();
   };
 
@@ -87,6 +94,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           >
             Persona & Prompt
             {activeTab === 'system' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-400 rounded-full" />
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('api')}
+            className={`py-3 relative transition-colors ${
+              activeTab === 'api' ? 'text-sky-400' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            API Key (Optional)
+            {activeTab === 'api' && (
               <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-400 rounded-full" />
             )}
           </button>
@@ -194,6 +213,54 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <p className="text-[11px] text-slate-400">
                 Mira is tuned to respond concisely (2-4 sentences max) and actively ask natural follow-up questions to keep real-time conversation flowing smoothly.
               </p>
+            </div>
+          )}
+
+          {/* TAB 3: API KEY (OPTIONAL) */}
+          {activeTab === 'api' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-sky-400" />
+                  Direct AI API Key (Optional Override)
+                </label>
+                <div className="relative">
+                  <input
+                    type={showKey ? 'text' : 'password'}
+                    value={tempApiKey}
+                    onChange={(e) => setTempApiKey(e.target.value)}
+                    placeholder="Optional: Paste Gemini or Groq API key here"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-slate-100 text-sm focus:outline-none focus:border-sky-400 transition-colors pr-20"
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                    {tempApiKey && (
+                      <button
+                        type="button"
+                        onClick={() => setTempApiKey('')}
+                        className="text-[10px] px-2 py-0.5 rounded bg-white/10 hover:bg-red-500/20 text-slate-400 hover:text-red-300 transition-colors"
+                      >
+                        Clear
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowKey(!showKey)}
+                      className="text-slate-400 hover:text-slate-200"
+                    >
+                      {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="p-3 mt-3 rounded-xl bg-sky-950/40 border border-sky-400/20 text-xs text-slate-300 leading-relaxed">
+                  <p className="font-semibold text-sky-300 mb-1">💡 Cloud Deployment Notice:</p>
+                  <p>
+                    On Netlify, Mira automatically uses the <strong>GEMINI_API_KEY</strong> added in your Netlify Dashboard (Environment Variables).
+                  </p>
+                  <p className="mt-1 text-slate-400">
+                    If Netlify environment variables are not yet active or you wish to test directly, you can paste your key above.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>

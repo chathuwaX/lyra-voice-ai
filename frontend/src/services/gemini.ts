@@ -76,8 +76,11 @@ export async function generateGeminiReply(
       }
     } else {
       const errData = await backendRes.json().catch(() => ({}));
-      if (errData?.error && !cleanKey) {
-        throw new Error(errData.error);
+      const detailedError =
+        errData?.error ||
+        `Backend API returned status ${backendRes.status} (${backendRes.statusText || 'Function Error'}). Please check Netlify serverless function.`;
+      if (!cleanKey) {
+        throw new Error(detailedError);
       }
     }
   } catch (backendErr: any) {

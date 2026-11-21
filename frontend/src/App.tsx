@@ -211,7 +211,7 @@ export const App: React.FC = () => {
       addToast(err, 'error');
     },
     continuous: voiceSettings.handsFreeMode,
-    silenceTimeoutMs: 900, // 900ms fast VAD for real-time capture
+    silenceTimeoutMs: 1400, // 1.4s comfortable conversational silence window
   });
 
   // Keep refs in sync
