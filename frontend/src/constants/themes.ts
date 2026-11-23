@@ -1,6 +1,24 @@
 import { ThemeConfig, ThemeMode } from '../types';
 
 export const THEMES: Record<ThemeMode, ThemeConfig> = {
+  rgb: {
+    id: 'rgb',
+    name: 'RGB Chroma',
+    tagline: 'Vibrant RGB neon spectrum with dynamic rainbow glow',
+    bgColor: '#030308',
+    gradientBg:
+      'radial-gradient(ellipse at 50% 40%, rgba(255, 0, 110, 0.18) 0%, rgba(0, 240, 255, 0.15) 30%, rgba(0, 255, 128, 0.12) 60%, #030308 100%)',
+    accentGlow: 'rgba(255, 0, 128, 0.55)',
+    ringColor: '#ff007f',
+    particleColors: ['#ff0055', '#ff9900', '#ffea00', '#00ff66', '#00e1ff', '#8a2be2', '#ffffff'],
+    cardBg: 'rgba(10, 8, 20, 0.82)',
+    cardBorder: 'rgba(255, 255, 255, 0.14)',
+    avatarBorder: 'border-transparent shadow-[0_0_55px_rgba(255,0,128,0.45)]',
+    textColor: '#ffffff',
+    textMuted: '#cbd5e1',
+    headerBorder: 'rgba(255, 255, 255, 0.12)',
+    isDark: true,
+  },
   dark: {
     id: 'dark',
     name: 'Dark Theme',

@@ -14,14 +14,14 @@ import { useSpeechSynthesis } from './hooks/useSpeechSynthesis';
 import { MessageSquare, Settings, Sparkles, PanelRightOpen } from 'lucide-react';
 
 export const App: React.FC = () => {
-  // Theme management: dark or light
+  // Theme management: rgb, dark, or light
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>(() => {
     const saved = localStorage.getItem('antigravity_theme_mode') || localStorage.getItem('antigravity_theme');
-    if (saved === 'light' || saved === 'dark') return saved;
-    return 'dark';
+    if (saved === 'light' || saved === 'dark' || saved === 'rgb') return saved as ThemeMode;
+    return 'rgb';
   });
 
-  const activeThemeConfig = THEMES[currentTheme] || THEMES.dark;
+  const activeThemeConfig = THEMES[currentTheme] || THEMES.rgb;
 
   const handleSelectTheme = (mode: ThemeMode) => {
     setCurrentTheme(mode);
@@ -285,21 +285,45 @@ export const App: React.FC = () => {
       >
           {/* Brand Logo & Name */}
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-cyan-300 flex items-center justify-center shadow-lg shadow-sky-500/20 border border-white/20">
+            <div
+              className={`w-8 h-8 rounded-xl flex items-center justify-center shadow-lg border border-white/20 ${
+                activeThemeConfig.id === 'rgb'
+                  ? 'bg-gradient-to-tr from-pink-500 via-emerald-400 to-cyan-400 shadow-pink-500/30 animate-rgb-rotate'
+                  : 'bg-gradient-to-tr from-sky-500 to-cyan-300 shadow-sky-500/20'
+              }`}
+            >
               <Sparkles className="w-4 h-4 text-slate-950" />
             </div>
             <div>
-              <h1 className={`text-sm sm:base font-bold tracking-tight flex items-center gap-2 ${
-                activeThemeConfig.isDark ? 'text-white' : 'text-slate-900'
-              }`}>
-                <span>MIRA</span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-500 dark:text-sky-300 border border-sky-400/30">
-                  Voice AI
+              <h1
+                className={`text-sm sm:base font-bold tracking-tight flex items-center gap-2 ${
+                  activeThemeConfig.id === 'rgb'
+                    ? 'text-white'
+                    : activeThemeConfig.isDark
+                    ? 'text-white'
+                    : 'text-slate-900'
+                }`}
+              >
+                {activeThemeConfig.id === 'rgb' ? (
+                  <span className="rgb-rainbow-text font-black tracking-wider text-base">MIRA</span>
+                ) : (
+                  <span>MIRA</span>
+                )}
+                <span
+                  className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                    activeThemeConfig.id === 'rgb'
+                      ? 'bg-gradient-to-r from-pink-500/20 via-emerald-500/20 to-cyan-500/20 text-pink-300 border-pink-400/40 shadow-[0_0_10px_rgba(255,0,128,0.3)]'
+                      : 'bg-sky-500/20 text-sky-500 dark:text-sky-300 border-sky-400/30'
+                  }`}
+                >
+                  {activeThemeConfig.id === 'rgb' ? 'RGB AI' : 'Voice AI'}
                 </span>
               </h1>
-              <p className={`text-[11px] hidden sm:block ${
-                activeThemeConfig.isDark ? 'text-slate-400' : 'text-slate-500'
-              }`}>
+              <p
+                className={`text-[11px] hidden sm:block ${
+                  activeThemeConfig.isDark ? 'text-slate-400' : 'text-slate-500'
+                }`}
+              >
                 {activeThemeConfig.tagline}
               </p>
             </div>

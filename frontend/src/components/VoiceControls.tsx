@@ -89,11 +89,19 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
 
       {/* Primary Voice Action Bar */}
       <div
-        className="flex items-center justify-between gap-4 px-6 py-3 rounded-full backdrop-blur-2xl border shadow-2xl transition-all duration-300 w-full max-w-md"
+        className={`flex items-center justify-between gap-4 px-6 py-3 rounded-full backdrop-blur-2xl border shadow-2xl transition-all duration-300 w-full max-w-md ${
+          theme.id === 'rgb' ? 'rgb-glow-card' : ''
+        }`}
         style={{
           backgroundColor: theme.cardBg,
           borderColor: isListening ? theme.ringColor : (theme.cardBorder || 'rgba(255,255,255,0.12)'),
-          boxShadow: isListening ? `0 0 35px ${theme.accentGlow}` : (theme.isDark ? '0 10px 30px rgba(0,0,0,0.5)' : '0 10px 30px rgba(0,0,0,0.06)'),
+          boxShadow: isListening
+            ? theme.id === 'rgb'
+              ? '0 0 45px rgba(255,0,128,0.7)'
+              : `0 0 35px ${theme.accentGlow}`
+            : theme.isDark
+            ? '0 10px 30px rgba(0,0,0,0.5)'
+            : '0 10px 30px rgba(0,0,0,0.06)',
         }}
       >
         {/* Left: Hands-Free Continuous Mode Toggle */}
@@ -101,12 +109,14 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
           onClick={onToggleHandsFree}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
             handsFreeMode
-              ? 'bg-emerald-500/25 text-emerald-600 dark:text-emerald-300 border border-emerald-400/40 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
+              ? theme.id === 'rgb'
+                ? 'bg-gradient-to-r from-pink-500/25 to-cyan-500/25 text-pink-300 border border-pink-400/40 shadow-[0_0_12px_rgba(255,0,128,0.35)]'
+                : 'bg-emerald-500/25 text-emerald-600 dark:text-emerald-300 border border-emerald-400/40 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
               : 'bg-black/5 hover:bg-black/10 text-slate-600 hover:text-slate-900 dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-400 dark:hover:text-slate-200 border border-transparent'
           }`}
           title="Toggle hands-free continuous conversation mode"
         >
-          <Radio className={`w-3.5 h-3.5 ${handsFreeMode ? 'text-emerald-500 dark:text-emerald-400 animate-pulse' : ''}`} />
+          <Radio className={`w-3.5 h-3.5 ${handsFreeMode ? (theme.id === 'rgb' ? 'text-pink-400 animate-pulse' : 'text-emerald-500 dark:text-emerald-400 animate-pulse') : ''}`} />
           <span className="hidden sm:inline">Hands-free</span>
         </button>
 
@@ -125,7 +135,11 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
             disabled={!isSpeechSupported}
             className={`relative flex items-center justify-center w-14 h-14 rounded-full transition-all duration-300 active:scale-95 shadow-xl ${
               isListening
-                ? 'bg-gradient-to-tr from-sky-500 to-cyan-400 text-white shadow-[0_0_25px_#38bdf8]'
+                ? theme.id === 'rgb'
+                  ? 'bg-gradient-to-tr from-pink-500 via-emerald-400 to-cyan-400 text-white shadow-[0_0_35px_rgba(255,0,128,0.75)] animate-rgb-rotate'
+                  : 'bg-gradient-to-tr from-sky-500 to-cyan-400 text-white shadow-[0_0_25px_#38bdf8]'
+                : theme.id === 'rgb'
+                ? 'bg-gradient-to-tr from-pink-500/30 via-purple-500/30 to-cyan-500/30 text-white hover:from-pink-500/40 hover:to-cyan-500/40 border border-pink-400/40 shadow-[0_0_15px_rgba(255,0,128,0.25)]'
                 : 'bg-slate-800 text-white hover:bg-slate-700 dark:bg-white/10 dark:hover:bg-white/20 dark:text-white border border-slate-700 dark:border-white/20'
             } ${!isSpeechSupported ? 'opacity-50 cursor-not-allowed' : ''}`}
             title={isListening ? 'Click to stop listening' : 'Click or Press Spacebar to speak'}

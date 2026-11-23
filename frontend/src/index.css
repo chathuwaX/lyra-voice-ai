@@ -43,6 +43,58 @@
   animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Vibrant RGB Chromatic Animations */
+@keyframes rgbRotate {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    filter: hue-rotate(360deg);
+  }
+}
+
+@keyframes rgbGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-rgb-rotate {
+  animation: rgbRotate 8s linear infinite;
+}
+
+.rgb-rainbow-text {
+  background: linear-gradient(90deg, #ff0055, #ff7700, #ffea00, #00ff66, #00e1ff, #9900ff, #ff00aa, #ff0055);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: rgbGradient 4s linear infinite;
+}
+
+.rgb-glow-card {
+  position: relative;
+}
+.rgb-glow-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(90deg, #ff0055, #00ff66, #00e1ff, #ff0055);
+  background-size: 200% 200%;
+  animation: rgbGradient 5s linear infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
 /* Completely remove/hide Netlify injected drawer, badge, or preview widget */
 #netlify-drawer,
 .netlify-drawer,
@@ -59,4 +111,3 @@ div[style*="2147483647"] {
   width: 0 !important;
   height: 0 !important;
 }
-

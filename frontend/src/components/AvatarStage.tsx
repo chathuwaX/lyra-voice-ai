@@ -90,29 +90,44 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
           )}
 
           {/* Central 3D Digital Human Container */}
-          <div
-            className={`relative rounded-full overflow-hidden p-1.5 transition-all duration-700 backdrop-blur-md shadow-2xl ${
-              theme.avatarBorder
-            } w-72 h-72 sm:w-80 sm:h-80 md:w-96 md:h-96`}
-            style={{
-              background:
-                'linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.03) 100%)',
-            }}
-          >
-            {/* Inner 3D Container - Photorealistic Digital Human */}
-            <div className="relative w-full h-full rounded-full overflow-hidden bg-slate-950 shadow-inner">
-              <div className="w-full h-full cursor-grab active:cursor-grabbing">
-                <HumanCanvas
-                  avatarState={avatarState}
-                  isSpeaking={isSpeaking}
-                  audioLevel={audioLevel}
-                  themeGlow={theme.ringColor}
-                  fallbackImageUrl={avatarSrc}
-                />
-              </div>
+          <div className="relative">
+            {/* Animated Rotating RGB Rainbow Border Ring in RGB Mode */}
+            {theme.id === 'rgb' && (
+              <div
+                className="absolute inset-[-6px] rounded-full animate-spin-slow pointer-events-none opacity-90 shadow-[0_0_35px_rgba(255,0,128,0.5)]"
+                style={{
+                  background:
+                    'conic-gradient(from 0deg, #ff0055, #ff7700, #ffea00, #00ff66, #00ffff, #0066ff, #aa00ff, #ff00aa, #ff0055)',
+                }}
+              />
+            )}
 
-              {/* Subtle holographic sheen overlay */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 pointer-events-none" />
+            <div
+              className={`relative rounded-full overflow-hidden p-1.5 transition-all duration-700 backdrop-blur-md shadow-2xl ${
+                theme.avatarBorder
+              } w-72 h-72 sm:w-80 sm:h-80 md:w-96 md:h-96`}
+              style={{
+                background:
+                  theme.id === 'rgb'
+                    ? 'linear-gradient(135deg, rgba(255,0,128,0.3) 0%, rgba(0,229,255,0.3) 50%, rgba(0,255,128,0.2) 100%)'
+                    : 'linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.03) 100%)',
+              }}
+            >
+              {/* Inner 3D Container - Photorealistic Digital Human */}
+              <div className="relative w-full h-full rounded-full overflow-hidden bg-slate-950 shadow-inner">
+                <div className="w-full h-full cursor-grab active:cursor-grabbing">
+                  <HumanCanvas
+                    avatarState={avatarState}
+                    isSpeaking={isSpeaking}
+                    audioLevel={audioLevel}
+                    themeGlow={theme.id === 'rgb' ? '#ff007f' : theme.ringColor}
+                    fallbackImageUrl={avatarSrc}
+                  />
+                </div>
+
+                {/* Subtle holographic sheen overlay */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 pointer-events-none" />
+              </div>
             </div>
           </div>
         </div>
@@ -183,11 +198,17 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
                   20,
                   Math.min(100, audioLevel * 100 * factor + Math.sin(idx) * 15)
                 );
+                const rgbColors = ['#ff0055', '#ff7700', '#ffea00', '#00ff66', '#00ffff', '#0066ff', '#aa00ff'];
                 return (
                   <div
                     key={idx}
-                    className="w-1 bg-gradient-to-t from-sky-500 to-cyan-300 rounded-full transition-all duration-75"
-                    style={{ height: `${heightPct}%` }}
+                    className={`w-1 rounded-full transition-all duration-75 ${
+                      theme.id === 'rgb' ? '' : 'bg-gradient-to-t from-sky-500 to-cyan-300'
+                    }`}
+                    style={{
+                      height: `${heightPct}%`,
+                      backgroundColor: theme.id === 'rgb' ? rgbColors[idx % rgbColors.length] : undefined,
+                    }}
                   />
                 );
               })}
