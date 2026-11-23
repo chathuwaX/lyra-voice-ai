@@ -92,8 +92,8 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
         className="flex items-center justify-between gap-4 px-6 py-3 rounded-full backdrop-blur-2xl border shadow-2xl transition-all duration-300 w-full max-w-md"
         style={{
           backgroundColor: theme.cardBg,
-          borderColor: isListening ? theme.ringColor : 'rgba(255,255,255,0.12)',
-          boxShadow: isListening ? `0 0 35px ${theme.accentGlow}` : '0 10px 30px rgba(0,0,0,0.5)',
+          borderColor: isListening ? theme.ringColor : (theme.cardBorder || 'rgba(255,255,255,0.12)'),
+          boxShadow: isListening ? `0 0 35px ${theme.accentGlow}` : (theme.isDark ? '0 10px 30px rgba(0,0,0,0.5)' : '0 10px 30px rgba(0,0,0,0.06)'),
         }}
       >
         {/* Left: Hands-Free Continuous Mode Toggle */}
@@ -101,12 +101,12 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
           onClick={onToggleHandsFree}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
             handsFreeMode
-              ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-400/40 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
-              : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-slate-200 border border-white/5'
+              ? 'bg-emerald-500/25 text-emerald-600 dark:text-emerald-300 border border-emerald-400/40 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
+              : 'bg-black/5 hover:bg-black/10 text-slate-600 hover:text-slate-900 dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-400 dark:hover:text-slate-200 border border-transparent'
           }`}
           title="Toggle hands-free continuous conversation mode"
         >
-          <Radio className={`w-3.5 h-3.5 ${handsFreeMode ? 'text-emerald-400 animate-pulse' : ''}`} />
+          <Radio className={`w-3.5 h-3.5 ${handsFreeMode ? 'text-emerald-500 dark:text-emerald-400 animate-pulse' : ''}`} />
           <span className="hidden sm:inline">Hands-free</span>
         </button>
 
@@ -126,7 +126,7 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
             className={`relative flex items-center justify-center w-14 h-14 rounded-full transition-all duration-300 active:scale-95 shadow-xl ${
               isListening
                 ? 'bg-gradient-to-tr from-sky-500 to-cyan-400 text-white shadow-[0_0_25px_#38bdf8]'
-                : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+                : 'bg-slate-800 text-white hover:bg-slate-700 dark:bg-white/10 dark:hover:bg-white/20 dark:text-white border border-slate-700 dark:border-white/20'
             } ${!isSpeechSupported ? 'opacity-50 cursor-not-allowed' : ''}`}
             title={isListening ? 'Click to stop listening' : 'Click or Press Spacebar to speak'}
           >
@@ -144,8 +144,8 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
             onClick={onToggleMute}
             className={`p-2 rounded-full transition-all ${
               isMuted
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-400/30'
-                : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-slate-200'
+                ? 'bg-rose-500/20 text-rose-500 dark:text-rose-300 border border-rose-400/30'
+                : 'bg-black/5 hover:bg-black/10 text-slate-600 hover:text-slate-900 dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-400 dark:hover:text-slate-200'
             }`}
             title={isMuted ? 'Unmute AI Voice' : 'Mute AI Voice'}
           >
@@ -156,8 +156,8 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
             onClick={() => setShowTextInput(!showTextInput)}
             className={`p-2 rounded-full transition-all ${
               showTextInput
-                ? 'bg-sky-500/20 text-sky-300 border border-sky-400/30'
-                : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-slate-200'
+                ? 'bg-sky-500/20 text-sky-600 dark:text-sky-300 border border-sky-400/30'
+                : 'bg-black/5 hover:bg-black/10 text-slate-600 hover:text-slate-900 dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-400 dark:hover:text-slate-200'
             }`}
             title="Toggle Text Input Fallback"
           >
@@ -167,9 +167,9 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
       </div>
 
       {/* Spacebar helper prompt */}
-      <div className="text-[11px] text-slate-400 tracking-wide flex items-center gap-1.5 opacity-80">
+      <div className="text-[11px] text-slate-500 dark:text-slate-400 tracking-wide flex items-center gap-1.5 opacity-90">
         <span>Press</span>
-        <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/15 text-slate-200 font-mono text-[10px]">
+        <kbd className="px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/15 text-slate-700 dark:text-slate-200 font-mono text-[10px]">
           Space
         </kbd>
         <span>to talk / stop</span>
@@ -182,7 +182,7 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
           className="w-full max-w-md flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-xl border transition-all duration-300 animate-fade-in shadow-xl"
           style={{
             backgroundColor: theme.cardBg,
-            borderColor: 'rgba(255,255,255,0.15)',
+            borderColor: theme.cardBorder || 'rgba(255,255,255,0.15)',
           }}
         >
           <input
@@ -190,7 +190,7 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Type your message here..."
-            className="flex-1 bg-transparent border-none outline-none px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-400"
+            className="flex-1 bg-transparent border-none outline-none px-3 py-1.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
           />
           <button
             type="submit"

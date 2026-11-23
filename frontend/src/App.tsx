@@ -14,17 +14,30 @@ import { useSpeechSynthesis } from './hooks/useSpeechSynthesis';
 import { MessageSquare, Settings, Sparkles, PanelRightOpen } from 'lucide-react';
 
 export const App: React.FC = () => {
-  // Theme management
+  // Theme management: dark or light
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>(() => {
-    return (localStorage.getItem('antigravity_theme') as ThemeMode) || 'antigravity';
+    const saved = localStorage.getItem('antigravity_theme_mode') || localStorage.getItem('antigravity_theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    return 'dark';
   });
 
-  const activeThemeConfig = THEMES[currentTheme] || THEMES.antigravity;
+  const activeThemeConfig = THEMES[currentTheme] || THEMES.dark;
 
   const handleSelectTheme = (mode: ThemeMode) => {
     setCurrentTheme(mode);
-    localStorage.setItem('antigravity_theme', mode);
+    localStorage.setItem('antigravity_theme_mode', mode);
   };
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (activeThemeConfig.isDark) {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else {
+      root.classList.remove('dark');
+      root.classList.add('light');
+    }
+  }, [activeThemeConfig.isDark]);
 
   // Screen width detection for responsive side panel
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -277,7 +290,9 @@ export const App: React.FC = () => {
 
   return (
     <div
-      className="relative w-screen h-screen overflow-hidden flex flex-col justify-between transition-colors duration-1000 select-none font-sans"
+      className={`relative w-screen h-screen overflow-hidden flex flex-col justify-between transition-colors duration-500 select-none font-sans ${
+        activeThemeConfig.isDark ? 'dark text-slate-100' : 'light text-slate-900'
+      }`}
       style={{ backgroundColor: activeThemeConfig.bgColor }}
     >
       {/* Dynamic Canvas Particles & Light Orbs */}
@@ -288,26 +303,35 @@ export const App: React.FC = () => {
 
       {/* Top Header Navbar (Hidden in Fullscreen Immersive Mode) */}
       {!isFullscreen && (
-        <header className="relative z-30 flex items-center justify-between px-4 sm:px-8 py-3.5 sm:py-4 shrink-0 border-b border-white/5 backdrop-blur-md">
+        <header
+          className="relative z-30 flex items-center justify-between px-4 sm:px-8 py-3.5 sm:py-4 shrink-0 border-b backdrop-blur-md transition-colors duration-300"
+          style={{
+            borderColor: activeThemeConfig.headerBorder || (activeThemeConfig.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'),
+          }}
+        >
           {/* Brand Logo & Name */}
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-cyan-300 flex items-center justify-center shadow-lg shadow-sky-500/20 border border-white/20">
               <Sparkles className="w-4 h-4 text-slate-950" />
             </div>
             <div>
-              <h1 className="text-sm sm:base font-bold tracking-tight text-white flex items-center gap-2">
+              <h1 className={`text-sm sm:base font-bold tracking-tight flex items-center gap-2 ${
+                activeThemeConfig.isDark ? 'text-white' : 'text-slate-900'
+              }`}>
                 <span>MIRA</span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-500 dark:text-sky-300 border border-sky-400/30">
                   Voice AI
                 </span>
               </h1>
-              <p className="text-[11px] text-slate-400 hidden sm:block">
+              <p className={`text-[11px] hidden sm:block ${
+                activeThemeConfig.isDark ? 'text-slate-400' : 'text-slate-500'
+              }`}>
                 {activeThemeConfig.tagline}
               </p>
             </div>
           </div>
 
-          {/* Center: Theme Selector */}
+          {/* Center: Dark / Light Theme Switcher */}
           <div className="hidden sm:block">
             <ThemeSwitcher
               currentTheme={currentTheme}
@@ -323,8 +347,10 @@ export const App: React.FC = () => {
               onClick={() => setIsSidePanelOpen(!isSidePanelOpen)}
               className={`relative flex items-center gap-1.5 px-3 py-2 rounded-2xl backdrop-blur-xl border transition-all shadow-md active:scale-95 text-xs font-medium ${
                 isSidePanelOpen
-                  ? 'bg-sky-500/20 text-sky-200 border-sky-400/40 shadow-[0_0_15px_rgba(56,189,248,0.2)]'
-                  : 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border-white/10 hover:border-white/25'
+                  ? 'bg-sky-500/20 text-sky-600 dark:text-sky-200 border-sky-400/40 shadow-[0_0_15px_rgba(56,189,248,0.2)]'
+                  : activeThemeConfig.isDark
+                  ? 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border-white/10 hover:border-white/25'
+                  : 'bg-black/5 hover:bg-black/10 text-slate-700 hover:text-slate-900 border-black/10 hover:border-black/20'
               }`}
               title={isSidePanelOpen ? 'Collapse Conversation Side Panel' : 'Open Conversation Side Panel'}
             >
@@ -340,7 +366,11 @@ export const App: React.FC = () => {
             {/* Settings Modal Toggle */}
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="p-2.5 rounded-2xl backdrop-blur-xl border border-white/10 hover:border-white/25 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all shadow-md active:scale-95"
+              className={`p-2.5 rounded-2xl backdrop-blur-xl border transition-all shadow-md active:scale-95 ${
+                activeThemeConfig.isDark
+                  ? 'border-white/10 hover:border-white/25 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white'
+                  : 'border-black/10 hover:border-black/20 bg-black/5 hover:bg-black/10 text-slate-700 hover:text-slate-900'
+              }`}
               title="Settings"
             >
               <Settings className="w-4 h-4" />

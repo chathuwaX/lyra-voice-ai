@@ -87,28 +87,28 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
         }`}
         style={{
           backgroundColor: theme.cardBg,
-          borderColor: 'rgba(255,255,255,0.12)',
+          borderColor: theme.cardBorder || 'rgba(255,255,255,0.12)',
         }}
       >
         {/* Panel Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-black/10 dark:border-white/10 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-sky-500/20 border border-sky-400/30 flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-sky-400" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                 <span>Live Conversation</span>
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               </h2>
-              <p className="text-[11px] text-slate-400">Real-time voice & text log</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">Real-time voice & text log</p>
             </div>
           </div>
 
           <div className="flex items-center gap-1.5">
             <button
               onClick={onClear}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 dark:text-slate-400 dark:hover:text-rose-400 transition-colors"
               title="Clear conversation"
             >
               <Trash2 className="w-4 h-4" />
@@ -116,7 +116,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
 
             <button
               onClick={onToggle}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-white/10 transition-colors"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-black/5 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-white/10 transition-colors"
               title={isOpen ? 'Collapse side panel' : 'Expand side panel'}
             >
               {isMobile ? <X className="w-4 h-4" /> : <PanelRightClose className="w-4 h-4" />}
@@ -141,18 +141,18 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
                 className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} group animate-fade-in`}
               >
                 {/* Header tag */}
-                <div className="flex items-center gap-1.5 mb-1 px-1 text-[11px] text-slate-400">
+                <div className="flex items-center gap-1.5 mb-1 px-1 text-[11px] text-slate-500 dark:text-slate-400">
                   {isUser ? (
                     <>
                       <span>You</span>
-                      <User className="w-3 h-3 text-sky-300" />
+                      <User className="w-3 h-3 text-sky-400" />
                     </>
                   ) : isSystem ? (
-                    <span className="text-amber-400">System</span>
+                    <span className="text-amber-500 dark:text-amber-400">System</span>
                   ) : (
                     <>
-                      <Bot className="w-3.5 h-3.5 text-cyan-300" />
-                      <span className="font-medium text-slate-300">Mira</span>
+                      <Bot className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-300" />
+                      <span className="font-medium text-slate-700 dark:text-slate-300">Mira</span>
                     </>
                   )}
                   <span>•</span>
@@ -163,16 +163,16 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
                 <div
                   className={`relative max-w-[90%] px-4 py-3 rounded-2xl text-xs sm:text-sm leading-relaxed transition-all shadow-md ${
                     isUser
-                      ? 'bg-sky-600/80 text-white rounded-br-xs border border-sky-400/30 shadow-sky-950/30'
+                      ? 'bg-sky-600 text-white rounded-br-xs border border-sky-400/30 shadow-sky-950/20'
                       : isSystem
                       ? 'bg-rose-950/70 text-rose-200 border border-rose-500/30 rounded-bl-xs'
-                      : 'bg-white/10 text-slate-100 rounded-bl-xs border border-white/15 backdrop-blur-md shadow-black/20'
+                      : 'bg-white/90 text-slate-800 rounded-bl-xs border border-slate-200/80 shadow-slate-200/40 dark:bg-white/10 dark:text-slate-100 dark:border-white/15 dark:shadow-black/20 backdrop-blur-md'
                   }`}
                 >
                   {isThinkingPlaceholder ? (
-                    <div className="flex items-center gap-1.5 py-1 px-1 text-sky-300">
+                    <div className="flex items-center gap-1.5 py-1 px-1 text-sky-400">
                       <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping" />
-                      <span className="text-xs italic text-slate-300">Mira is thinking...</span>
+                      <span className="text-xs italic text-slate-500 dark:text-slate-300">Mira is thinking...</span>
                     </div>
                   ) : (
                     <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -225,14 +225,14 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
         </div>
 
         {/* Panel Footer: Quick Message Input */}
-        <div className="p-3.5 border-t border-white/10 shrink-0 bg-slate-950/30">
+        <div className="p-3.5 border-t border-black/10 dark:border-white/10 shrink-0 bg-black/5 dark:bg-slate-950/30">
           <form onSubmit={handleInputSubmit} className="flex items-center gap-2">
             <input
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder="Type in conversation..."
-              className="flex-1 px-3.5 py-2 rounded-xl bg-slate-900/80 border border-white/10 text-xs sm:text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
+              className="flex-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-300/80 dark:border-white/10 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
             />
             <button
               type="submit"
@@ -243,7 +243,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
               <Send className="w-3.5 h-3.5" />
             </button>
           </form>
-          <div className="flex items-center justify-between text-[10px] text-slate-500 mt-2 px-1">
+          <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mt-2 px-1">
             <span>{messages.length} messages</span>
             <span>Real-Time Voice AI</span>
           </div>

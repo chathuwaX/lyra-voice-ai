@@ -150,17 +150,17 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
                       e.stopPropagation();
                       onToggleFullscreen();
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1 bg-slate-950/85 hover:bg-slate-900 text-slate-300 hover:text-white text-[11px] font-medium backdrop-blur-xl border border-white/15 rounded-full shadow-xl transition-all active:scale-95"
+                    className="flex items-center gap-1.5 px-3 py-1 bg-white/85 text-slate-700 hover:text-slate-950 dark:bg-slate-950/85 dark:text-slate-300 dark:hover:text-white text-[11px] font-medium backdrop-blur-xl border border-black/10 dark:border-white/15 rounded-full shadow-xl transition-all active:scale-95"
                     title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen Immersive Mode'}
                   >
                     {isFullscreen ? (
                       <>
-                        <Minimize2 className="w-3.5 h-3.5 text-cyan-400" />
+                        <Minimize2 className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400" />
                         <span>Exit Fullscreen</span>
                       </>
                     ) : (
                       <>
-                        <Maximize2 className="w-3.5 h-3.5 text-sky-400" />
+                        <Maximize2 className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
                         <span>Fullscreen</span>
                       </>
                     )}
@@ -180,28 +180,28 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
             className="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium backdrop-blur-xl border transition-all duration-300 shadow-md"
             style={{
               backgroundColor: theme.cardBg,
-              borderColor: avatarState === 'listening' ? theme.ringColor : 'rgba(255,255,255,0.12)',
-              color: '#f8fafc',
+              borderColor: avatarState === 'listening' ? theme.ringColor : (theme.cardBorder || 'rgba(255,255,255,0.12)'),
+              color: theme.textColor || '#f8fafc',
             }}
           >
             {avatarState === 'idle' && (
               <>
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Mic Open (Ready)</span>
+                <span className={theme.isDark ? 'text-slate-200' : 'text-slate-700'}>Mic Open (Ready)</span>
               </>
             )}
 
             {avatarState === 'listening' && (
               <>
                 <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping" />
-                <span className="text-sky-300 font-semibold tracking-wide">Hearing You...</span>
+                <span className="text-sky-500 dark:text-sky-300 font-semibold tracking-wide">Hearing You...</span>
               </>
             )}
 
             {avatarState === 'thinking' && (
               <>
-                <Sparkles className="w-3.5 h-3.5 text-cyan-300 animate-spin" />
-                <span className="text-cyan-200 font-medium tracking-wide">Thinking... (Mic Off)</span>
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+                <span className="text-cyan-600 dark:text-cyan-200 font-medium tracking-wide">Thinking... (Mic Off)</span>
               </>
             )}
 
@@ -221,12 +221,12 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
                     style={{ animationDelay: '300ms', height: '90%' }}
                   />
                 </span>
-                <span className="text-sky-200 font-medium">Mira Speaking (Mic Off)</span>
+                <span className="text-sky-600 dark:text-sky-200 font-medium">Mira Speaking (Mic Off)</span>
               </>
             )}
 
             {isHandsFree && (
-              <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">
+              <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 rounded border border-emerald-500/30">
                 Hands-free
               </span>
             )}
@@ -234,7 +234,7 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
 
           {/* Live Audio Reactive Micro-Waveform Bars when Listening */}
           {avatarState === 'listening' && (
-            <div className="flex items-center gap-1 h-5 px-3 py-1 rounded-full bg-slate-900/60 backdrop-blur-md border border-sky-400/30">
+            <div className="flex items-center gap-1 h-5 px-3 py-1 rounded-full bg-slate-200/80 dark:bg-slate-900/60 backdrop-blur-md border border-sky-400/30">
               {[0.4, 0.8, 1, 0.7, 0.9, 0.5, 0.3].map((factor, idx) => {
                 const heightPct = Math.max(
                   20,
@@ -253,7 +253,7 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
 
           {/* Real-Time Live Assistant Speech Subtitle (During Fullscreen or Normal View) */}
           {avatarState === 'speaking' && lastAssistantText && (
-            <div className="mt-1 px-4 py-2 rounded-2xl bg-slate-900/80 backdrop-blur-xl border border-sky-400/20 text-xs sm:text-sm text-sky-100 shadow-xl max-w-lg line-clamp-2 animate-fade-in">
+            <div className="mt-1 px-4 py-2 rounded-2xl bg-white/90 text-slate-900 dark:bg-slate-900/80 dark:text-sky-100 backdrop-blur-xl border border-sky-400/30 text-xs sm:text-sm shadow-xl max-w-lg line-clamp-2 animate-fade-in">
               "{lastAssistantText}"
             </div>
           )}

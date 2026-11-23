@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply m-0 p-0 overflow-hidden bg-slate-950 text-slate-100 font-sans;
+    @apply m-0 p-0 overflow-hidden font-sans transition-colors duration-500;
   }
 }
 

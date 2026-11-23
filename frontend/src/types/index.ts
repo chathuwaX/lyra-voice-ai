@@ -1,4 +1,4 @@
-export type ThemeMode = 'antigravity' | 'professional' | 'friendly' | 'futuristic';
+export type ThemeMode = 'dark' | 'light';
 
 export interface ThemeConfig {
   id: ThemeMode;
@@ -10,7 +10,12 @@ export interface ThemeConfig {
   particleColors: string[];
   gradientBg: string;
   cardBg: string;
+  cardBorder?: string;
   avatarBorder: string;
+  textColor?: string;
+  textMuted?: string;
+  headerBorder?: string;
+  isDark: boolean;
 }
 
 export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking';
