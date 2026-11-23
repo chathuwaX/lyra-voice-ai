@@ -1,11 +1,6 @@
 import React from 'react';
 import { AvatarState, ThemeConfig } from '../types';
-import {
-  VolumeX,
-  Sparkles,
-  Maximize2,
-  Minimize2,
-} from 'lucide-react';
+import { VolumeX, Sparkles } from 'lucide-react';
 import { HumanCanvas } from './digital-human/HumanCanvas';
 
 interface AvatarStageProps {
@@ -17,8 +12,6 @@ interface AvatarStageProps {
   onStopSpeaking: () => void;
   isHandsFree?: boolean;
   lastAssistantText?: string;
-  isFullscreen?: boolean;
-  onToggleFullscreen?: () => void;
 }
 
 export const AvatarStage: React.FC<AvatarStageProps> = ({
@@ -29,8 +22,6 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
   onStopSpeaking,
   isHandsFree,
   lastAssistantText,
-  isFullscreen = false,
-  onToggleFullscreen,
 }) => {
   const avatarSrc = customAvatarUrl || '/avatar.png';
   const isSpeaking = avatarState === 'speaking';
@@ -46,32 +37,15 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
   return (
     <>
       {/* Stage Container */}
-      <div
-        className={`relative flex flex-col items-center justify-center select-none z-10 transition-all duration-500 ${
-          isFullscreen ? 'py-2 w-full max-w-4xl' : 'py-6 w-full'
-        }`}
-      >
-        {/* Fullscreen Close / Exit Floating Button */}
-        {isFullscreen && onToggleFullscreen && (
-          <button
-            type="button"
-            onClick={onToggleFullscreen}
-            className="fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/90 hover:bg-slate-800 text-white text-xs font-semibold backdrop-blur-xl border border-white/25 transition-all shadow-2xl active:scale-95"
-            title="Exit Fullscreen Mode"
-          >
-            <Minimize2 className="w-4 h-4 text-cyan-400" />
-            <span>Exit Fullscreen</span>
-          </button>
-        )}
-
+      <div className="relative flex flex-col items-center justify-center select-none z-10 py-6 w-full">
         {/* Outer ambient glow backlight */}
         <div
           className="absolute rounded-full pointer-events-none transition-all duration-700 ease-out"
           style={{
-            width: isFullscreen ? '750px' : '460px',
-            height: isFullscreen ? '750px' : '460px',
+            width: '460px',
+            height: '460px',
             background: theme.gradientBg,
-            filter: isFullscreen ? 'blur(120px)' : 'blur(80px)',
+            filter: 'blur(80px)',
             opacity: avatarState === 'speaking' ? 0.95 : avatarState === 'listening' ? 0.85 : 0.55,
             transform: `scale(${avatarState === 'speaking' ? 1.25 : 1})`,
           }}
@@ -119,11 +93,7 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
           <div
             className={`relative rounded-full overflow-hidden p-1.5 transition-all duration-700 backdrop-blur-md shadow-2xl ${
               theme.avatarBorder
-            } ${
-              isFullscreen
-                ? 'w-[78vw] max-w-[520px] h-[78vw] max-h-[520px]'
-                : 'w-72 h-72 sm:w-80 sm:h-80 md:w-96 md:h-96'
-            }`}
+            } w-72 h-72 sm:w-80 sm:h-80 md:w-96 md:h-96`}
             style={{
               background:
                 'linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.03) 100%)',
@@ -140,33 +110,6 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
                   fallbackImageUrl={avatarSrc}
                 />
               </div>
-
-              {/* Fullscreen Toggle Overlay Button */}
-              {onToggleFullscreen && (
-                <div className="absolute bottom-3.5 left-1/2 -translate-x-1/2 z-40">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleFullscreen();
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1 bg-white/85 text-slate-700 hover:text-slate-950 dark:bg-slate-950/85 dark:text-slate-300 dark:hover:text-white text-[11px] font-medium backdrop-blur-xl border border-black/10 dark:border-white/15 rounded-full shadow-xl transition-all active:scale-95"
-                    title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen Immersive Mode'}
-                  >
-                    {isFullscreen ? (
-                      <>
-                        <Minimize2 className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400" />
-                        <span>Exit Fullscreen</span>
-                      </>
-                    ) : (
-                      <>
-                        <Maximize2 className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-                        <span>Fullscreen</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
 
               {/* Subtle holographic sheen overlay */}
               <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 pointer-events-none" />
@@ -251,7 +194,7 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
             </div>
           )}
 
-          {/* Real-Time Live Assistant Speech Subtitle (During Fullscreen or Normal View) */}
+          {/* Real-Time Live Assistant Speech Subtitle */}
           {avatarState === 'speaking' && lastAssistantText && (
             <div className="mt-1 px-4 py-2 rounded-2xl bg-white/90 text-slate-900 dark:bg-slate-900/80 dark:text-sky-100 backdrop-blur-xl border border-sky-400/30 text-xs sm:text-sm shadow-xl max-w-lg line-clamp-2 animate-fade-in">
               "{lastAssistantText}"

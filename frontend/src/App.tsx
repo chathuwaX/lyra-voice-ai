@@ -65,31 +65,6 @@ export const App: React.FC = () => {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-
-  const handleToggleFullscreen = useCallback(() => {
-    setIsFullscreen((prev) => {
-      const next = !prev;
-      if (next) {
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(() => {});
-        }
-      } else {
-        if (document.fullscreenElement) {
-          document.exitFullscreen().catch(() => {});
-        }
-      }
-      return next;
-    });
-  }, []);
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
 
   const addToast = useCallback((text: string, type: 'error' | 'success' | 'info' = 'info') => {
     const id = 'toast-' + Date.now() + Math.random().toString(36).substring(2, 6);
@@ -301,14 +276,13 @@ export const App: React.FC = () => {
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      {/* Top Header Navbar (Hidden in Fullscreen Immersive Mode) */}
-      {!isFullscreen && (
-        <header
-          className="relative z-30 flex items-center justify-between px-4 sm:px-8 py-3.5 sm:py-4 shrink-0 border-b backdrop-blur-md transition-colors duration-300"
-          style={{
-            borderColor: activeThemeConfig.headerBorder || (activeThemeConfig.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'),
-          }}
-        >
+      {/* Top Header Navbar */}
+      <header
+        className="relative z-30 flex items-center justify-between px-4 sm:px-8 py-3.5 sm:py-4 shrink-0 border-b backdrop-blur-md transition-colors duration-300"
+        style={{
+          borderColor: activeThemeConfig.headerBorder || (activeThemeConfig.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'),
+        }}
+      >
           {/* Brand Logo & Name */}
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-cyan-300 flex items-center justify-center shadow-lg shadow-sky-500/20 border border-white/20">
@@ -377,26 +351,19 @@ export const App: React.FC = () => {
             </button>
           </div>
         </header>
-      )}
 
       {/* Main Workspace: Split View with Avatar Stage + Docked Conversation Side Panel */}
       <div className="relative flex-1 flex overflow-hidden">
         {/* Left/Center Area: Avatar Stage & Voice Controls */}
-        <div
-          className={`flex-1 flex flex-col justify-between items-center relative z-10 px-4 ${
-            isFullscreen ? 'py-1' : 'py-3 sm:py-4'
-          } overflow-y-auto custom-scrollbar`}
-        >
+        <div className="flex-1 flex flex-col justify-between items-center relative z-10 px-4 py-3 sm:py-4 overflow-y-auto custom-scrollbar">
           {/* Mobile Theme Switcher */}
-          {!isFullscreen && (
-            <div className="sm:hidden mb-1">
-              <ThemeSwitcher
-                currentTheme={currentTheme}
-                onSelectTheme={handleSelectTheme}
-                activeConfig={activeThemeConfig}
-              />
-            </div>
-          )}
+          <div className="sm:hidden mb-1">
+            <ThemeSwitcher
+              currentTheme={currentTheme}
+              onSelectTheme={handleSelectTheme}
+              activeConfig={activeThemeConfig}
+            />
+          </div>
 
           {/* Central Floating Avatar */}
           <div className="flex-1 flex items-center justify-center w-full">
@@ -407,8 +374,6 @@ export const App: React.FC = () => {
               onStopSpeaking={handleInterruptSpeaking}
               isHandsFree={voiceSettings.handsFreeMode}
               lastAssistantText={lastAssistantSpokenRef.current}
-              isFullscreen={isFullscreen}
-              onToggleFullscreen={handleToggleFullscreen}
             />
           </div>
 
@@ -431,21 +396,19 @@ export const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Side Panel: Live Real-Time Conversation Log (Hidden in Fullscreen) */}
-        {!isFullscreen && (
-          <ConversationPanel
-            isOpen={isSidePanelOpen}
-            onToggle={() => setIsSidePanelOpen(!isSidePanelOpen)}
-            messages={messages}
-            interimTranscript={interimTranscript}
-            avatarState={avatarState}
-            onClear={clearMessages}
-            theme={activeThemeConfig}
-            onSendMessage={handleManualSendMessage}
-            onSpeakMessage={(text) => speak(text)}
-            isMobile={isMobile}
-          />
-        )}
+        {/* Right Side Panel: Live Real-Time Conversation Log */}
+        <ConversationPanel
+          isOpen={isSidePanelOpen}
+          onToggle={() => setIsSidePanelOpen(!isSidePanelOpen)}
+          messages={messages}
+          interimTranscript={interimTranscript}
+          avatarState={avatarState}
+          onClear={clearMessages}
+          theme={activeThemeConfig}
+          onSendMessage={handleManualSendMessage}
+          onSpeakMessage={(text) => speak(text)}
+          isMobile={isMobile}
+        />
       </div>
 
       {/* Settings Modal */}
